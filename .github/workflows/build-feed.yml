@@ -57,7 +57,7 @@ jobs:
           TREND_TOP_N: "20"
           MIN_TREND_VELOCITY: "0"
           FEED_MAX: "50"
-          EXCLUDE_SHORTS: "false"
+          EXCLUDE_SHORTS: "true"
           # State + outputs are read from and written into the data-branch checkout.
           STATE_PATH: "published/data/state.json"
           OUTPUT_DIR: "published/docs"
