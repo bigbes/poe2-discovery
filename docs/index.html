@@ -195,8 +195,8 @@ a{color:inherit}
     <div class="brand"><span class="logo">⟁</span><div><div class="bt">EXILE HUB</div><div class="bs">{{ data.tag }}</div></div></div>
     <div class="topr">
       <div class="tabs">
-        <button class="tab {{ cls2 }}" onClick="{{ on2 }}">Path of Exile 2 <span class="v">0.5</span></button>
-        <button class="tab {{ cls1 }}" onClick="{{ on1 }}">Path of Exile <span class="v">3.28</span></button>
+        <button class="tab {{ cls2 }}" onClick="{{ on2 }}">Path of Exile 2 <span class="v">{{ v2 }}</span></button>
+        <button class="tab {{ cls1 }}" onClick="{{ on1 }}">Path of Exile <span class="v">{{ v1 }}</span></button>
       </div>
       <a class="launch" href="{{ steamHref }}"><span class="pl">▶</span>Launch via Steam</a>
     </div>
@@ -367,7 +367,7 @@ a{color:inherit}
 </x-dc>
 <script type="text/x-dc" data-dc-script data-props="{&quot;startGame&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;poe2&quot;,&quot;poe1&quot;],&quot;default&quot;:&quot;poe2&quot;,&quot;tsType&quot;:&quot;'poe2'|'poe1'&quot;,&quot;section&quot;:&quot;Defaults&quot;},&quot;searchMode&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;wiki&quot;,&quot;trade&quot;],&quot;default&quot;:&quot;wiki&quot;,&quot;tsType&quot;:&quot;'wiki'|'trade'&quot;,&quot;section&quot;:&quot;Defaults&quot;},&quot;videoPlayer&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;youtube&quot;,&quot;piped&quot;,&quot;invidious&quot;],&quot;default&quot;:&quot;youtube&quot;,&quot;tsType&quot;:&quot;'youtube'|'piped'|'invidious'&quot;,&quot;section&quot;:&quot;Defaults&quot;},&quot;showTimeline&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Defaults&quot;},&quot;timelineHeight&quot;:{&quot;editor&quot;:&quot;int&quot;,&quot;default&quot;:248,&quot;min&quot;:160,&quot;max&quot;:520,&quot;step&quot;:4,&quot;unit&quot;:&quot;px&quot;,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;Defaults&quot;},&quot;showReddit&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Defaults&quot;},&quot;showYoutube&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Defaults&quot;},&quot;accentPoe2&quot;:{&quot;editor&quot;:&quot;color&quot;,&quot;default&quot;:&quot;#e8a13a&quot;,&quot;options&quot;:[&quot;#e8a13a&quot;,&quot;#d4574e&quot;,&quot;#b98a4b&quot;,&quot;#c9a227&quot;],&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Theme&quot;},&quot;accentPoe1&quot;:{&quot;editor&quot;:&quot;color&quot;,&quot;default&quot;:&quot;#4aa3c7&quot;,&quot;options&quot;:[&quot;#4aa3c7&quot;,&quot;#6f7be8&quot;,&quot;#3fae8e&quot;,&quot;#9a6fe8&quot;],&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Theme&quot;}}">
 class Component extends DCLogic {
-  state = { game: null, q: '', mode: null, suggestions: [], open: false, hl: -1, reddit: [], redditState: 'loading', yt: [], ytState: 'loading', modal: null, vmax: false };
+  state = { game: null, q: '', mode: null, suggestions: [], open: false, hl: -1, reddit: [], redditState: 'loading', yt: [], ytState: 'loading', modal: null, vmax: false, leagues: null };
 
   get raw() {
     return {
@@ -452,6 +452,7 @@ class Component extends DCLogic {
     [0, 120, 400, 900].forEach(t => setTimeout(() => this.scaleTl(), t));
     this.fetchReddit();
     this.fetchYoutube();
+    this.fetchLeagues();
     // page-level hotkeys: "/" opens command mode, "?" opens jump mode
     this._hotkey = (e) => {
       const t = e.target || {};
@@ -486,6 +487,24 @@ class Component extends DCLogic {
     ifr.style.transform = 'none';
     ifr.style.height = (CROP + 120) + 'px';
     wrap.style.height = CROP + 'px';
+  }
+
+  // Current league names are fetched server-side into ./leagues.json (GGG's API has no
+  // browser CORS), so we just read that same-origin file. Falls back to hardcoded labels.
+  fetchLeagues() {
+    fetch('./leagues.json', { cache: 'no-cache' })
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d) this.setState({ leagues: d }); })
+      .catch(() => {});
+  }
+  leagueName(g) {
+    const L = this.state.leagues;
+    return (L && L[g] && L[g].league) ? L[g].league : null;
+  }
+  leagueLabel(g) { return this.leagueName(g) ?? (g === 'poe2' ? '0.5' : '3.28'); }
+  leagueTag(g) {
+    const n = this.leagueName(g);
+    return n ? ('Wraeclast · ' + n + ' League') : this.raw[g].tag;
   }
 
   gameKey() { return this.state.game ?? (this.props.startGame ?? 'poe2'); }
@@ -894,6 +913,7 @@ class Component extends DCLogic {
     const data = this.raw[g];
     const enriched = {
       ...data,
+      tag: this.leagueTag(g),
       featured: this.withIcons(data.featured),
       groups: data.groups.map(gr => ({ ...gr, links: this.withIcons(gr.links) }))
     };
@@ -915,6 +935,7 @@ class Component extends DCLogic {
       on2: () => this.setGame('poe2'), on1: () => this.setGame('poe1'),
       onIconError: (e) => this.onIconError(e),
       steamHref: data.steam,
+      v2: this.leagueLabel('poe2'), v1: this.leagueLabel('poe1'),
       // search / omnibar
       q: this.state.q,
       leadIcon: lead,
