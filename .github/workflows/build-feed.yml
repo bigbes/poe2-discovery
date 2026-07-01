@@ -72,58 +72,11 @@ jobs:
           OUTPUT_DIR: "published/docs/poe1"
         run: python poe2_trending.py
 
-      # Small landing page at the site root linking to both feeds.
-      - name: Write landing page
+      # Landing page = the Exile Hub launcher (committed at web/index.html on master).
+      - name: Publish Exile Hub landing page
         run: |
-          cat > published/docs/index.html <<'HTML'
-          <!DOCTYPE html>
-          <html lang="en">
-          <head>
-          <meta charset="utf-8">
-          <meta name="viewport" content="width=device-width, initial-scale=1">
-          <title>Path of Exile — Trending on YouTube</title>
-          <style>
-            :root { color-scheme: dark; }
-            body { margin: 0; min-height: 100vh; display: grid; place-items: center;
-                   background: #0f1115; color: #e6e8ee;
-                   font: 16px/1.6 system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }
-            main { padding: 2rem; max-width: 640px; }
-            h1 { font-size: 1.4rem; margin: 0 0 .25rem; }
-            p.sub { color: #9aa3b2; margin: 0 0 1.5rem; }
-            .cards { display: grid; gap: 1rem; grid-template-columns: 1fr 1fr; }
-            @media (max-width: 520px) { .cards { grid-template-columns: 1fr; } }
-            a.card { display: block; padding: 1.1rem 1.25rem; text-decoration: none;
-                     color: #e6e8ee; background: #161a22; border: 1px solid #232733;
-                     border-radius: 12px; transition: border-color .15s, background .15s; }
-            a.card:hover { border-color: #3a4152; background: #1a1f29; }
-            a.card b { font-size: 1.1rem; }
-            a.card span { display: block; color: #9aa3b2; font-size: .85rem; margin-top: .3rem; }
-            .links { margin-top: .6rem; font-size: .8rem; }
-            .links a { color: #8ab4f8; text-decoration: none; }
-            .links a:hover { text-decoration: underline; }
-          </style>
-          </head>
-          <body>
-          <main>
-            <h1>Path of Exile — Trending on YouTube</h1>
-            <p class="sub">Videos logged once each, when they first start gaining views fast.</p>
-            <div class="cards">
-              <a class="card" href="poe2/">
-                <b>Path of Exile 2</b>
-                <span>Trending log &amp; table</span>
-                <div class="links"><a href="poe2/feed.xml">RSS</a> &middot; <a href="poe2/trending.csv">CSV</a></div>
-              </a>
-              <a class="card" href="poe1/">
-                <b>Path of Exile 1</b>
-                <span>Trending log &amp; table</span>
-                <div class="links"><a href="poe1/feed.xml">RSS</a> &middot; <a href="poe1/trending.csv">CSV</a></div>
-              </a>
-            </div>
-          </main>
-          </body>
-          </html>
-          HTML
-          echo "Wrote landing page."
+          cp web/index.html published/docs/index.html
+          echo "Published Exile Hub landing page."
 
       - name: Commit state + outputs to the data branch
         working-directory: published

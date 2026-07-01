@@ -4,9 +4,15 @@ A tiny, zero-dependency Python script that tracks which YouTube videos for a gam
 are **gaining views fastest**, and keeps a running record over time.
 
 This repo publishes **two feeds** from the one script — **Path of Exile 2** at `/poe2/`
-and **Path of Exile 1** at `/poe1/` — with a small landing page at the site root linking
-to both. Each feed is just another invocation of the script with its own `SEARCH_QUERY`,
-`STATE_PATH`, and `OUTPUT_DIR` (see the workflow's two "Generate feed" steps).
+and **Path of Exile 1** at `/poe1/`. Each feed is just another invocation of the script
+with its own `SEARCH_QUERY`, `STATE_PATH`, and `OUTPUT_DIR` (see the workflow's two
+"Generate feed" steps).
+
+The site root is **Exile Hub** (`web/index.html`) — a Path of Exile launcher dashboard
+(game tabs, a wiki/trade command-palette omnibar, the live league timeline, link tiles,
+Reddit "Hot", and a YouTube-trending panel that reads the feeds above). It's a standalone
+vanilla-JS page, ported from a Claude Design component; the workflow copies it to
+`docs/index.html` on each run.
 
 The key idea: it **remembers state between runs**. A video is logged **once**, at the
 moment it first becomes trending, and then it is *never re-added to the top of the
