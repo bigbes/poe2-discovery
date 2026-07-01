@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Exile Hub — PiP</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #000; overflow: hidden; }
+  iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+  .msg { color: #9aa3b2; font: 14px system-ui, sans-serif; display: grid; place-items: center; height: 100%; }
+</style>
+</head>
+<body>
+<!-- Picture-in-Picture wrapper. The Exile Hub loads THIS page (a real https:// URL) into the
+     Document-PiP window, and it embeds YouTube — so the player gets a valid referrer and
+     doesn't fail with "error 153" the way a bare iframe in an about:blank PiP window does. -->
+<script>
+  (function () {
+    var p = new URLSearchParams(location.search);
+    var v = p.get('v') || '';
+    if (!/^[\w-]{6,20}$/.test(v)) {
+      document.body.innerHTML = '<div class="msg">No video.</div>';
+      return;
+    }
+    var f = document.createElement('iframe');
+    f.src = 'https://www.youtube.com/embed/' + v + '?autoplay=1&rel=0&playsinline=1';
+    f.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; fullscreen';
+    f.setAttribute('referrerpolicy', 'strict-origin-when-cross-origin');
+    f.allowFullscreen = true;
+    document.body.appendChild(f);
+  })();
+</script>
+</body>
+</html>
