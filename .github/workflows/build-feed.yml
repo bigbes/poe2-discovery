@@ -72,6 +72,12 @@ jobs:
           OUTPUT_DIR: "published/docs/poe1"
         run: python poe2_trending.py
 
+      # Current league names for the Hub (GGG's API has no browser CORS, so fetch server-side).
+      - name: Fetch current league names
+        env:
+          LEAGUES_PATH: "published/docs/leagues.json"
+        run: python fetch_leagues.py
+
       # NOTE: the landing page (Exile Hub) is published by the separate publish-hub.yml
       # workflow on push to master — it is intentionally not touched here.
 

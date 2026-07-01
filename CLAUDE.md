@@ -98,7 +98,11 @@ Babel-transpiles, and mounts it. **Do not hand-edit `web/exile-hub.dc.html` for 
 
 Data sources & CORS workarounds (in the component script): YouTube = `fetch` the repo's RSS
 (GitHub Pages sends permissive CORS); **Reddit hot + comments = JSONP via injected `<script>`**
-(Reddit blocks cross-origin fetch); wiki autocomplete = `fetch` with `origin=*`. The RSS
+(Reddit blocks cross-origin fetch); wiki autocomplete = `fetch` with `origin=*`; **current league
+names = same-origin `fetch('./leagues.json')`**, written server-side by `fetch_leagues.py` in
+`build-feed.yml` (GGG's league API has no browser CORS). The Hub shows the fetched league name
+in the game tabs + tag, falling back to hardcoded `0.5`/`3.28` if the file is missing
+(`leagueLabel`/`leagueTag`). The RSS
 `<title>` is parsed by a regex expecting the generator's exact
 `[↑ {v}/hr · {views} views] Title` format — changing `build_rss()` in `poe2_trending.py` can
 silently break the Hub's parser. Each game's `ytFeed` URL is hardcoded in the component's `raw`

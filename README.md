@@ -44,6 +44,7 @@ automatically on its first run.)
 
 ```
 poe2_trending.py            # the feed/table generator (stdlib only)
+fetch_leagues.py            # writes docs/leagues.json (current PoE1/PoE2 league names)
 web/                        # Exile Hub — the launcher served at the site root
   exile-hub.dc.html        #   Claude Design component (canonical; round-trips with Design)
   support.js               #   dc-runtime (vendored; auto-boots the .dc, loads React from CDN)
