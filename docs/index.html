@@ -794,16 +794,19 @@ class Component extends DCLogic {
       { keys: ['db'], label: is2 ? 'PoE2DB' : 'PoEDB', hint: 'Item, skill & modifier database',
         home: is2 ? 'https://poe2db.tw' : 'https://poedb.tw', search: (q) => this.gsite(is2 ? 'poe2db.tw' : 'poedb.tw', q) },
       { keys: ['coe', 'craft'], label: 'Craft of Exile', hint: 'Crafting simulator — search a base',
+        kinds: is2 ? ['base'] : null,
         home: is2 ? 'https://www.craftofexile.com/?game=poe2' : 'https://www.craftofexile.com', search: (q) => this.gsite('craftofexile.com', q) },
       { keys: ['re', 'regex'], label: 'PoE Regex', hint: 'Stash / vendor filter generator',
         home: is2 ? 'https://poe2.re' : 'https://poe.re/', search: (q) => this.gsite(is2 ? 'poe2.re' : 'poe.re', q) },
       { keys: ['n', 'ninja'], label: 'poe.ninja', hint: 'Economy prices & builds',
+        kinds: is2 ? ['currency'] : null,
         home: is2 ? 'https://poe.ninja/poe2/builds' : 'https://poe.ninja', search: (q) => this.gsite('poe.ninja', q) },
       { keys: ['mx', 'maxroll'], label: 'Maxroll', hint: 'Build guides & planners',
         home: is2 ? 'https://maxroll.gg/poe2' : 'https://maxroll.gg/poe', search: (q) => this.gsite(is2 ? 'maxroll.gg/poe2' : 'maxroll.gg/poe', q) },
       { keys: ['pob'], label: 'Path of Building', hint: 'PoB community & builds',
         home: 'https://pathofbuilding.community/', search: (q) => this.gsite('pathofbuilding.community', q) },
       { keys: is2 ? ['sc', 'scout'] : ['db2'], label: is2 ? 'PoE2 Scout' : 'poeprices', hint: is2 ? 'Prices & economy' : 'Price checking',
+        kinds: is2 ? ['unique'] : null,
         home: is2 ? 'https://poe2scout.com' : 'https://poeprices.info', search: (q) => this.gsite(is2 ? 'poe2scout.com' : 'poeprices.info', q) },
       { keys: ['r', 'reddit'], label: is2 ? 'r/PathOfExile2' : 'r/pathofexile', hint: 'Search the subreddit',
         home: 'https://www.reddit.com/r/' + (is2 ? 'PathOfExile2' : 'pathofexile') + '/',
@@ -833,10 +836,11 @@ class Component extends DCLogic {
       })
       .catch(() => { this.setState(s => ({ idx: { ...s.idx, [game]: [] } })); });
   }
-  localMatch(entries, q) {
+  localMatch(entries, q, kinds) {
     const n = q.trim().toLowerCase();
     const starts = [], has = [];
     for (const e of entries) {
+      if (kinds && kinds.indexOf(e.k) === -1) continue;   // command-scoped completion
       const l = e.n.toLowerCase();
       const i = l.indexOf(n);
       if (i === 0) starts.push(e);
@@ -848,14 +852,15 @@ class Component extends DCLogic {
     }));
   }
 
-  fetchSuggest(q) {
+  fetchSuggest(q, kinds) {
     clearTimeout(this._t);
     if (!q || q.trim().length < 2) { this.setState({ suggestions: [] }); return; }
     const index = this.state.idx[this.gameKey()];
     if (index && index.length) {
-      const local = this.localMatch(index, q);
+      const local = this.localMatch(index, q, kinds);
       if (local.length) { this.setState({ suggestions: local }); return; }
     }
+    if (kinds) { this.setState({ suggestions: [] }); return; }   // scoped: no live-wiki fallback
     this._t = setTimeout(() => {
       const g = this.raw[this.gameKey()];
       const url = g.wikiApi + '/api.php?action=opensearch&format=json&limit=8&origin=*&search=' + encodeURIComponent(q.trim());
@@ -904,7 +909,7 @@ class Component extends DCLogic {
       if (prefix.length > 1) { cmdTok = prefix.slice(1).trim(); query = v; }   // committed '/w '
       else { const sp = v.indexOf(' '); cmdTok = sp > -1 ? v.slice(0, sp) : v; query = sp > -1 ? v.slice(sp + 1) : ''; }
       const c = this.findCmd(this.registry(this.gameKey()), cmdTok);
-      if (c && c.native === 'wiki' && query.trim()) this.fetchSuggest(query);
+      if (c && query.trim() && (c.native === 'wiki' || c.kinds)) this.fetchSuggest(query, c.kinds || null);
       else this.setState({ suggestions: [] });
       return;
     }
@@ -940,7 +945,13 @@ class Component extends DCLogic {
             title: query.trim() ? ('Search ' + c.label + ' for “' + query.trim() + '”') : ('Open ' + c.label),
             sub: c.hint, action: '↵', run: () => this.runCommand(c, query)
           });
-          if (c.native === 'wiki' && query.trim()) wikiRows(6).forEach(r => rows.push(r));
+          if (query.trim()) {
+            if (c.native === 'wiki') wikiRows(6).forEach(r => rows.push(r));
+            else if (c.kinds) this.state.suggestions.slice(0, 6).forEach(s => rows.push({
+              badge: s.icon ? '' : (kindBadge[s.kind] || ''), icon: s.icon || '',
+              title: s.title, sub: s.sub || '', action: '↗', run: () => this.openUrl(c.search(s.title))
+            }));
+          }
         } else {
           rows.push({ badge: '/?', title: 'Unknown command “' + tok + '”', sub: 'Press ↵ to search the wiki instead', action: '↵', run: () => this.defaultGo(body) });
         }
