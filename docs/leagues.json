@@ -1,11 +1,13 @@
 {
   "poe1": {
-    "league": "Mirage"
+    "league": "Mirage",
+    "patch": "3.28.0"
   },
   "poe2": {
     "league": "Runes of Aldur",
+    "patch": "0.5.4",
     "scout": "runes"
   },
-  "updated": "2026-07-01T09:27:17Z",
+  "updated": "2026-07-01T09:37:20Z",
   "version": 1
 }
