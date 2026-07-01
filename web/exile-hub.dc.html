@@ -371,7 +371,7 @@ a{color:inherit}
 </x-dc>
 <script type="text/x-dc" data-dc-script data-props="{&quot;startGame&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;poe2&quot;,&quot;poe1&quot;],&quot;default&quot;:&quot;poe2&quot;,&quot;tsType&quot;:&quot;'poe2'|'poe1'&quot;,&quot;section&quot;:&quot;Defaults&quot;},&quot;searchMode&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;wiki&quot;,&quot;trade&quot;],&quot;default&quot;:&quot;wiki&quot;,&quot;tsType&quot;:&quot;'wiki'|'trade'&quot;,&quot;section&quot;:&quot;Defaults&quot;},&quot;videoPlayer&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;youtube&quot;,&quot;piped&quot;,&quot;invidious&quot;],&quot;default&quot;:&quot;youtube&quot;,&quot;tsType&quot;:&quot;'youtube'|'piped'|'invidious'&quot;,&quot;section&quot;:&quot;Defaults&quot;},&quot;showTimeline&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Defaults&quot;},&quot;timelineHeight&quot;:{&quot;editor&quot;:&quot;int&quot;,&quot;default&quot;:248,&quot;min&quot;:160,&quot;max&quot;:520,&quot;step&quot;:4,&quot;unit&quot;:&quot;px&quot;,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;Defaults&quot;},&quot;showReddit&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Defaults&quot;},&quot;showYoutube&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Defaults&quot;},&quot;accentPoe2&quot;:{&quot;editor&quot;:&quot;color&quot;,&quot;default&quot;:&quot;#e8a13a&quot;,&quot;options&quot;:[&quot;#e8a13a&quot;,&quot;#d4574e&quot;,&quot;#b98a4b&quot;,&quot;#c9a227&quot;],&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Theme&quot;},&quot;accentPoe1&quot;:{&quot;editor&quot;:&quot;color&quot;,&quot;default&quot;:&quot;#4aa3c7&quot;,&quot;options&quot;:[&quot;#4aa3c7&quot;,&quot;#6f7be8&quot;,&quot;#3fae8e&quot;,&quot;#9a6fe8&quot;],&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Theme&quot;}}">
 class Component extends DCLogic {
-  state = { game: null, q: '', mode: null, suggestions: [], open: false, hl: -1, reddit: [], redditState: 'loading', yt: [], ytState: 'loading', modal: null, vmax: false, leagues: null, idx: {} };
+  state = { game: null, q: '', mode: null, suggestions: [], open: false, hl: -1, reddit: [], redditState: 'loading', yt: [], ytState: 'loading', modal: null, vmax: false, leagues: null, idx: {}, prefix: '' };
 
   get raw() {
     return {
@@ -467,7 +467,7 @@ class Component extends DCLogic {
       if (e.metaKey || e.ctrlKey || e.altKey) return;
       if (e.key === '/' || e.key === '?') {
         e.preventDefault();
-        this.setState({ q: e.key, open: true, hl: -1, suggestions: [] });
+        this.setState({ prefix: e.key, q: '', open: true, hl: -1, suggestions: [] });
         if (this._input) this._input.focus();
       }
     };
@@ -633,6 +633,7 @@ class Component extends DCLogic {
     // PiP window has no referrer and fails with "error 153". Absolute URL because about:blank
     // has no base to resolve a relative path against.
     const wrapper = new URL('pip-player.html?v=' + encodeURIComponent(m.v.vid), location.href).href;
+    const v = m.v;
     window.documentPictureInPicture.requestWindow({ width: 480, height: 270 }).then(pw => {
       const d = pw.document;
       d.documentElement.style.cssText = 'margin:0;height:100%';
@@ -643,6 +644,9 @@ class Component extends DCLogic {
       ifr.allowFullscreen = true;
       ifr.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;border:0';
       d.body.appendChild(ifr);
+      // When the PiP window closes ("return to tab" or its ✕), bring the video back into
+      // the page instead of just disappearing.
+      pw.addEventListener('pagehide', () => this.openVideo(v), { once: true });
       this.closeModal();
     }).catch(() => {});
   }
@@ -825,7 +829,7 @@ class Component extends DCLogic {
       .then(d => {
         const entries = (d && d.entries) || [];
         this.setState(s => ({ idx: { ...s.idx, [game]: entries } }));
-        if (this.state.q && this.modeKey() === 'wiki') this.fetchSuggest(this.state.q);
+        if (this.state.q && !this.state.prefix && this.modeKey() === 'wiki') this.fetchSuggest(this.state.q);
       })
       .catch(() => { this.setState(s => ({ idx: { ...s.idx, [game]: [] } })); });
   }
@@ -869,14 +873,24 @@ class Component extends DCLogic {
 
   openUrl(url) { if (url) window.open(url, '_blank', 'noreferrer'); this.setState({ open: false, hl: -1 }); }
 
+  // The '/' (command) and '?' (jump) prefixes are tracked as a mode in state.prefix and are
+  // NOT shown as text in the input; the lead icon reflects the mode. Deleting back past the
+  // empty text (Backspace on empty, handled in onKeyBar) clears the mode.
+  full() { return this.state.prefix + this.state.q; }
   onQueryInput(v) {
-    this.setState({ q: v, open: true, hl: -1 });
-    const g = this.raw[this.gameKey()];
-    if (v.startsWith('?')) { this.setState({ suggestions: [] }); return; }
-    if (v.startsWith('/')) {
-      const body = v.slice(1); const sp = body.indexOf(' ');
-      const c = sp > -1 ? this.findCmd(this.registry(this.gameKey()), body.slice(0, sp)) : null;
-      if (c && c.native === 'wiki') this.fetchSuggest(body.slice(sp + 1));
+    let prefix = this.state.prefix;
+    // Typing '/' or '?' as the first character (while in default mode) enters that mode
+    // instead of printing the character.
+    if (!prefix && (v.charAt(0) === '/' || v.charAt(0) === '?')) {
+      prefix = v.charAt(0);
+      v = v.slice(1);
+    }
+    this.setState({ prefix, q: v, open: true, hl: -1 });
+    if (prefix === '?') { this.setState({ suggestions: [] }); return; }
+    if (prefix === '/') {
+      const sp = v.indexOf(' ');
+      const c = sp > -1 ? this.findCmd(this.registry(this.gameKey()), v.slice(0, sp)) : null;
+      if (c && c.native === 'wiki') this.fetchSuggest(v.slice(sp + 1));
       else this.setState({ suggestions: [] });
       return;
     }
@@ -887,7 +901,7 @@ class Component extends DCLogic {
   buildRows() {
     const g = this.gameKey();
     const reg = this.registry(g);
-    const q = this.state.q;
+    const q = this.full();
     const rows = [];
     const kindBadge = { unique: 'uniq', currency: 'cur', wiki: 'wiki' };
     const wikiRows = (limit) => this.state.suggestions.slice(0, limit).map(s => ({
@@ -931,7 +945,7 @@ class Component extends DCLogic {
   }
 
   pickCommand(c) {
-    this.setState({ q: '/' + c.keys[0] + ' ', hl: -1, open: true, suggestions: [] });
+    this.setState({ prefix: '/', q: c.keys[0] + ' ', hl: -1, open: true, suggestions: [] });
     if (this._input) this._input.focus();
   }
   runCommand(c, query) {
@@ -944,7 +958,7 @@ class Component extends DCLogic {
     this.openUrl(t ? g.wikiSearch + encodeURIComponent(t) : g.wikiApi);
   }
   execRaw() {
-    const q = this.state.q; const reg = this.registry(this.gameKey());
+    const q = this.full(); const reg = this.registry(this.gameKey());
     if (q.startsWith('/')) {
       const body = q.slice(1); const sp = body.indexOf(' ');
       const tok = sp === -1 ? body : body.slice(0, sp);
@@ -973,12 +987,15 @@ class Component extends DCLogic {
     if (e.key === 'ArrowDown') { e.preventDefault(); this.setState(s => ({ open: true, hl: Math.min((s.hl < 0 ? -1 : s.hl) + 1, rows.length - 1) })); }
     else if (e.key === 'ArrowUp') { e.preventDefault(); this.setState(s => ({ hl: Math.max((s.hl < 0 ? 0 : s.hl) - 1, -1) })); }
     else if (e.key === 'Tab') {
-      const q = this.state.q;
-      if (q.startsWith('/') && q.indexOf(' ') === -1) {
+      if (this.state.prefix === '/' && this.state.q.indexOf(' ') === -1) {
         e.preventDefault();
-        const c = this.findCmd(this.registry(this.gameKey()), q.slice(1));
+        const c = this.findCmd(this.registry(this.gameKey()), this.state.q);
         if (c) this.pickCommand(c);
       }
+    } else if (e.key === 'Backspace' && this.state.prefix && this.state.q === '') {
+      // deleting the "hidden" prefix char returns to default mode
+      e.preventDefault();
+      this.setState({ prefix: '', suggestions: [], hl: -1, open: true });
     } else if (e.key === 'Escape') { this.setState({ open: false, hl: -1 }); }
   }
 
@@ -999,9 +1016,10 @@ class Component extends DCLogic {
       onClick: () => r.run(),
       onHover: () => this.setState({ hl: i })
     }));
-    const lead = this.state.q.startsWith('/') ? '/' : this.state.q.startsWith('?') ? '?' : '⌕';
-    const dropHint = this.state.q.startsWith('/') ? 'Site commands · ↵ run · Tab to complete'
-      : this.state.q.startsWith('?') ? 'Jump to a site · ↵ opens it'
+    const pre = this.state.prefix;
+    const lead = pre === '/' ? '/' : pre === '?' ? '?' : '⌕';
+    const dropHint = pre === '/' ? 'Site commands · ↵ run · Tab to complete · ⌫ exits'
+      : pre === '?' ? 'Jump to a site · ↵ opens it · ⌫ exits'
       : mode === 'trade' ? 'Trade · ↵ opens the market' : 'Wiki suggestions · ↵ opens page';
     return {
       acc: this.accStyle(g),
@@ -1016,10 +1034,12 @@ class Component extends DCLogic {
       leadIcon: lead,
       clsWiki: mode === 'wiki' ? 'on' : '', clsTrade: mode === 'trade' ? 'on' : '',
       setWiki: () => this.setMode('wiki'), setTrade: () => this.setMode('trade'),
-      placeholder: mode === 'wiki'
+      placeholder: pre === '/' ? 'Command — w wiki · t trade · db · n ninja · …  (⌫ exits)'
+        : pre === '?' ? 'Jump to a site — type its name  (⌫ exits)'
+        : mode === 'wiki'
         ? ((g === 'poe2' ? 'Search PoE 2 Wiki' : 'Search PoE Wiki') + '   ·   / commands   ·   ? jump to site')
         : 'Open Trade   ·   / commands   ·   ? jump to site',
-      kbHint: mode === 'wiki' ? 'WIKI ↵' : 'TRADE ↵',
+      kbHint: pre === '/' ? 'CMD ↵' : pre === '?' ? 'JUMP ↵' : mode === 'wiki' ? 'WIKI ↵' : 'TRADE ↵',
       inputRef: (el) => { this._input = el; },
       onInput: (e) => this.onQueryInput(e.target.value),
       onFocus: () => this.setState({ open: true }),
