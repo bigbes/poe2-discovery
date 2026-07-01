@@ -610,11 +610,13 @@ class Component extends DCLogic {
   // ---- in-hub overlay ----
   openVideo(v) { this.setState({ modal: { type: 'yt', v }, vmax: false }); }
   toggleMax() { this.setState(s => ({ vmax: !s.vmax })); }
-  ytEmbedUrl(v) {
+  ytEmbedUrl(v, omitOrigin) {
     const player = this.props.videoPlayer ?? 'youtube';
-    const origin = (typeof location !== 'undefined' && location.origin && location.origin !== 'null') ? '&origin=' + encodeURIComponent(location.origin) : '';
+    // In a Document-PiP window (about:blank) the origin param can't be matched to the
+    // referrer, which triggers YouTube "error 153" — so omit it for PiP.
+    const origin = (!omitOrigin && typeof location !== 'undefined' && location.origin && location.origin !== 'null') ? '&origin=' + encodeURIComponent(location.origin) : '';
     const embeds = {
-      youtube: 'https://www.youtube.com/embed/' + v.vid + '?autoplay=1&rel=0' + origin,
+      youtube: 'https://www.youtube.com/embed/' + v.vid + '?autoplay=1&rel=0&playsinline=1' + origin,
       piped: 'https://piped.video/embed/' + v.vid + '?autoplay=1',
       invidious: 'https://yewtu.be/embed/' + v.vid + '?autoplay=1'
     };
@@ -626,14 +628,15 @@ class Component extends DCLogic {
   pipVideo() {
     const m = this.state.modal;
     if (!m || m.type !== 'yt' || !(window.documentPictureInPicture)) return;
-    const embed = this.ytEmbedUrl(m.v);
+    const embed = this.ytEmbedUrl(m.v, true);   // omit &origin to avoid YouTube error 153
     window.documentPictureInPicture.requestWindow({ width: 480, height: 270 }).then(pw => {
       const d = pw.document;
-      d.body.style.margin = '0';
-      d.body.style.background = '#000';
+      d.documentElement.style.cssText = 'margin:0;height:100%';
+      d.body.style.cssText = 'margin:0;height:100%;background:#000';
       const ifr = d.createElement('iframe');
       ifr.src = embed;
-      ifr.allow = 'autoplay; encrypted-media; picture-in-picture; fullscreen';
+      ifr.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; fullscreen';
+      ifr.setAttribute('referrerpolicy', 'strict-origin-when-cross-origin');
       ifr.allowFullscreen = true;
       ifr.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;border:0';
       d.body.appendChild(ifr);
