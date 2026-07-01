@@ -828,7 +828,7 @@ class Component extends DCLogic {
     const game = g ?? this.gameKey();
     if (this.state.idx[game] !== undefined) return;      // loading or loaded
     this.setState(s => ({ idx: { ...s.idx, [game]: null } }));
-    fetch('./search/' + game + '.json', { cache: 'force-cache' })
+    fetch('./search/' + game + '.json', { cache: 'default' })   // respect max-age; don't pin a stale index
       .then(r => r.ok ? r.json() : null)
       .then(d => {
         const entries = (d && d.entries) || [];
