@@ -38,7 +38,7 @@ history survives and is itself version-controlled.
 3. **Add the key as a secret.** Repo → Settings → Secrets and variables → Actions →
    New repository secret → name `YOUTUBE_API_KEY`, paste the key.
 4. **Turn on Pages.** Repo → Settings → Pages → Source = **Deploy from a branch** →
-   Branch `main`, folder **`/docs`**.
+   Branch `master`, folder **`/docs`**.
 5. **Run it.** Repo → Actions → "Build trending feed and table" → **Run workflow**.
    It will create `data/state.json` and `docs/…`, then commit them. Once Pages builds,
    you'll have:
