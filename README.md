@@ -1,8 +1,12 @@
 # Trending YouTube videos → RSS + chronological table
 
 A tiny, zero-dependency Python script that tracks which YouTube videos for a game
-(default: **Path of Exile 2**) are **gaining views fastest**, and keeps a running
-record over time.
+are **gaining views fastest**, and keeps a running record over time.
+
+This repo publishes **two feeds** from the one script — **Path of Exile 2** at `/poe2/`
+and **Path of Exile 1** at `/poe1/` — with a small landing page at the site root linking
+to both. Each feed is just another invocation of the script with its own `SEARCH_QUERY`,
+`STATE_PATH`, and `OUTPUT_DIR` (see the workflow's two "Generate feed" steps).
 
 The key idea: it **remembers state between runs**. A video is logged **once**, at the
 moment it first becomes trending, and then it is *never re-added to the top of the
@@ -41,13 +45,14 @@ automatically on its first run.)
 3. **Add the key as a secret.** Repo → Settings → Secrets and variables → Actions →
    New repository secret → name `YOUTUBE_API_KEY`, paste the key.
 4. **Run it once.** Repo → Actions → "Build trending feed and table" → **Run workflow**.
-   The first run creates the `feed` branch with `data/state.json` and `docs/…` on it.
+   The first run creates the `feed` branch with `data/*.json` and `docs/…` on it.
 5. **Turn on Pages.** Repo → Settings → Pages → Source = **Deploy from a branch** →
    Branch **`feed`**, folder **`/docs`**. (The `feed` branch only exists after step 4.)
-   Once Pages builds, you'll have:
-   - Feed:  `https://YOUR_USERNAME.github.io/YOUR_REPO/feed.xml`
-   - Table: `https://YOUR_USERNAME.github.io/YOUR_REPO/`
-6. **Subscribe** to the feed URL in your RSS reader. The workflow re-runs every 6 hours
+   Once Pages builds, you'll have (for this repo):
+   - Landing page: `https://bigbes.github.io/poe2-discovery/`
+   - PoE2: table `…/poe2/`, feed `…/poe2/feed.xml`, CSV `…/poe2/trending.csv`
+   - PoE1: table `…/poe1/`, feed `…/poe1/feed.xml`, CSV `…/poe1/trending.csv`
+6. **Subscribe** to a feed URL in your RSS reader. The workflow re-runs every 6 hours
    (edit the `cron` line), each time appending only newly-trending videos.
 
 The scheduled job only triggers on `schedule`/manual dispatch, so the commit it makes
