@@ -5,5 +5,7 @@ __pycache__/
 # Local secrets — never commit your API key
 .env
 
-# NOTE: data/ and docs/ are intentionally NOT ignored — the workflow commits
-# the updated state file and generated outputs back to the repo on each run.
+# Generated state + outputs live on the 'feed' branch, never on master.
+# These are only local test artifacts here, so keep the code branch clean.
+/data/
+/docs/

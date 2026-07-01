@@ -14,15 +14,39 @@ concurrency:
   group: trending-feed
   cancel-in-progress: false
 
+env:
+  # Generated state + outputs live on THIS branch, never on the code branch.
+  # 'master' stays code-only; point GitHub Pages at this branch's /docs folder.
+  DATA_BRANCH: feed
+
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      # Code branch (master) — just the script.
+      - name: Check out code
+        uses: actions/checkout@v4
 
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+
+      # Data branch — carries data/state.json across runs plus the published docs/.
+      # Checked out into ./published so it stays separate from the code checkout.
+      # Created as an orphan branch on the very first run.
+      - name: Check out (or create) the data branch
+        env:
+          REPO_URL: "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git"
+        run: |
+          if git ls-remote --exit-code --heads "$REPO_URL" "$DATA_BRANCH" >/dev/null 2>&1; then
+            echo "Data branch '$DATA_BRANCH' exists — cloning it."
+            git clone --branch "$DATA_BRANCH" --single-branch --depth 1 "$REPO_URL" published
+          else
+            echo "Data branch '$DATA_BRANCH' not found — creating it as an orphan."
+            git clone --depth 1 "$REPO_URL" published
+            git -C published checkout --orphan "$DATA_BRANCH"
+            git -C published rm -rf . >/dev/null 2>&1 || true
+          fi
 
       - name: Generate feed + chronological table
         env:
@@ -34,13 +58,15 @@ jobs:
           MIN_TREND_VELOCITY: "0"
           FEED_MAX: "50"
           EXCLUDE_SHORTS: "false"
-          STATE_PATH: "data/state.json"
-          OUTPUT_DIR: "docs"
+          # State + outputs are read from and written into the data-branch checkout.
+          STATE_PATH: "published/data/state.json"
+          OUTPUT_DIR: "published/docs"
           # After your first publish you'll know the URL; fill it in (optional):
           # FEED_SELF_URL: "https://YOUR_USERNAME.github.io/YOUR_REPO/feed.xml"
         run: python poe2_trending.py
 
-      - name: Commit state + outputs
+      - name: Commit state + outputs to the data branch
+        working-directory: published
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
@@ -49,5 +75,5 @@ jobs:
             echo "Nothing changed this run."
           else
             git commit -m "Update trending feed/table ($(date -u +%Y-%m-%dT%H:%MZ)) [skip ci]"
-            git push
+            git push origin "HEAD:$DATA_BRANCH"
           fi

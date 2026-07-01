@@ -18,8 +18,11 @@ Each run writes three things into `OUTPUT_DIR` (default `docs/`):
   time, first-seen views/velocity, peak velocity, and latest views.
 - **`trending.csv`** — the full archive, oldest → newest (a literal chronological table).
 
-State lives in **`data/state.json`** and is committed back to the repo each run, so the
-history survives and is itself version-controlled.
+State lives in **`data/state.json`**, and both it and the generated `docs/` are committed
+each run to a **separate `feed` branch** — never to `master`. The code branch stays
+code-only; the `feed` branch carries the accumulating state + published outputs, so the
+history survives and is itself version-controlled. (The workflow creates the `feed` branch
+automatically on its first run.)
 
 ## What you need
 
@@ -37,11 +40,11 @@ history survives and is itself version-controlled.
    `.github/workflows/build-feed.yml`).
 3. **Add the key as a secret.** Repo → Settings → Secrets and variables → Actions →
    New repository secret → name `YOUTUBE_API_KEY`, paste the key.
-4. **Turn on Pages.** Repo → Settings → Pages → Source = **Deploy from a branch** →
-   Branch `master`, folder **`/docs`**.
-5. **Run it.** Repo → Actions → "Build trending feed and table" → **Run workflow**.
-   It will create `data/state.json` and `docs/…`, then commit them. Once Pages builds,
-   you'll have:
+4. **Run it once.** Repo → Actions → "Build trending feed and table" → **Run workflow**.
+   The first run creates the `feed` branch with `data/state.json` and `docs/…` on it.
+5. **Turn on Pages.** Repo → Settings → Pages → Source = **Deploy from a branch** →
+   Branch **`feed`**, folder **`/docs`**. (The `feed` branch only exists after step 4.)
+   Once Pages builds, you'll have:
    - Feed:  `https://YOUR_USERNAME.github.io/YOUR_REPO/feed.xml`
    - Table: `https://YOUR_USERNAME.github.io/YOUR_REPO/`
 6. **Subscribe** to the feed URL in your RSS reader. The workflow re-runs every 6 hours
