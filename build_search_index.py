@@ -33,6 +33,11 @@ SCOUT = "https://api.poe2scout.com"
 NINJA_POE2 = "https://poe.ninja/poe2/api/economy/exchange/current/overview"
 POECDN = "https://web.poecdn.com"
 COE_POE2 = "https://www.craftofexile.com/json/poe2/main/poec_data.json"
+POE2DB = "https://poe2db.tw"
+# poe2db index pages whose gem-name anchors we scrape (skill/support/spirit gems — the data
+# poe2db adds over our other sources; uniques/bases/runes are already covered elsewhere).
+POE2DB_GEM_PAGES = ["/us/Skill_Gems", "/us/Support_Gems", "/us/Spirit_Gems"]
+_GEMITEM = re.compile(r'<a class="gemitem"[^>]*href="/us/([^"]+)"[^>]*>([^<]{2,60})</a>')
 
 # poe.ninja PoE2 "exchange" economy tabs (the ?type= values that return items).
 NINJA_TYPES = [
@@ -68,6 +73,27 @@ def get_text(url, timeout=40, retries=3):
             last = e
             time.sleep(1.5 * (attempt + 1))
     raise last
+
+
+# --------------------------------------------------------------------------- #
+def poe2db_gems():
+    """PoE2 skill/support/spirit gem names scraped from poe2db.tw (kind 'gem')."""
+    import html as _html
+    out, seen = [], set()
+    for path in POE2DB_GEM_PAGES:
+        text = get_text(POE2DB + path)
+        for _slug, name in _GEMITEM.findall(text):
+            name = _html.unescape(name.strip())
+            key = name.casefold()
+            if not name or key in seen:
+                continue
+            seen.add(key)
+            out.append({
+                "n": name, "k": "gem",
+                "u": WIKI["poe2"] + "/wiki/" + quote(name.replace(" ", "_")),
+            })
+        time.sleep(1.0)  # be polite to poe2db
+    return out
 
 
 # --------------------------------------------------------------------------- #
@@ -181,13 +207,19 @@ def ninja_economy(league_name):
 
 
 # --------------------------------------------------------------------------- #
+def _rank(e):
+    # Prefer an entry with an icon, then a typed source over a bare wiki title — so
+    # kind-scoped completion (/n /sc /coe /db) still matches names that are also wiki pages.
+    return (1 if e.get("i") else 0, 0 if e["k"] == "wiki" else 1)
+
+
 def merge(entries):
-    """De-dup by case-folded name; prefer an entry that carries an icon."""
+    """De-dup by case-folded name, keeping the richest entry (icon, then typed kind)."""
     by_name = {}
     for e in entries:
         key = e["n"].casefold()
         cur = by_name.get(key)
-        if cur is None or (not cur.get("i") and e.get("i")):
+        if cur is None or _rank(e) > _rank(cur):
             by_name[key] = e
     return sorted(by_name.values(), key=lambda e: e["n"].lower())
 
@@ -215,6 +247,7 @@ def build_game(game):
         if name:
             entries += try_source("ninja economy", lambda: ninja_economy(name))
         entries += try_source("coe bases", lambda: coe_bases())
+        entries += try_source("poe2db gems", lambda: poe2db_gems())
     merged = merge(entries)
     print("  -> %d unique entries" % len(merged))
     return merged

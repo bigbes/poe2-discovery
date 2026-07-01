@@ -792,6 +792,7 @@ class Component extends DCLogic {
       { keys: ['t', 'trade'], label: 'Official Trade', hint: 'Open the market search (query not pre-fillable)',
         home: d.trade, search: () => d.trade },
       { keys: ['db'], label: is2 ? 'PoE2DB' : 'PoEDB', hint: 'Item, skill & modifier database',
+        kinds: is2 ? ['gem'] : null,
         home: is2 ? 'https://poe2db.tw' : 'https://poedb.tw', search: (q) => this.gsite(is2 ? 'poe2db.tw' : 'poedb.tw', q) },
       { keys: ['coe', 'craft'], label: 'Craft of Exile', hint: 'Crafting simulator — search a base',
         kinds: is2 ? ['base'] : null,
@@ -799,7 +800,7 @@ class Component extends DCLogic {
       { keys: ['re', 'regex'], label: 'PoE Regex', hint: 'Stash / vendor filter generator',
         home: is2 ? 'https://poe2.re' : 'https://poe.re/', search: (q) => this.gsite(is2 ? 'poe2.re' : 'poe.re', q) },
       { keys: ['n', 'ninja'], label: 'poe.ninja', hint: 'Economy prices & builds',
-        kinds: is2 ? ['currency'] : null,
+        kinds: is2 ? ['currency', 'unique', 'base'] : null,
         home: is2 ? 'https://poe.ninja/poe2/builds' : 'https://poe.ninja', search: (q) => this.gsite('poe.ninja', q) },
       { keys: ['mx', 'maxroll'], label: 'Maxroll', hint: 'Build guides & planners',
         home: is2 ? 'https://maxroll.gg/poe2' : 'https://maxroll.gg/poe', search: (q) => this.gsite(is2 ? 'maxroll.gg/poe2' : 'maxroll.gg/poe', q) },
@@ -922,7 +923,7 @@ class Component extends DCLogic {
     const reg = this.registry(g);
     const q = this.full();
     const rows = [];
-    const kindBadge = { unique: 'uniq', currency: 'cur', base: 'base', wiki: 'wiki' };
+    const kindBadge = { unique: 'uniq', currency: 'cur', base: 'base', gem: 'gem', wiki: 'wiki' };
     const wikiRows = (limit) => this.state.suggestions.slice(0, limit).map(s => ({
       badge: s.icon ? '' : (kindBadge[s.kind] || 'wiki'), icon: s.icon || '',
       title: s.title, sub: s.sub || '', action: '↵', run: () => this.openUrl(s.pageUrl || (this.raw[g].wikiSearch + encodeURIComponent(s.title)))
