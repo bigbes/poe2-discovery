@@ -8,11 +8,17 @@ and **Path of Exile 1** at `/poe1/`. Each feed is just another invocation of the
 with its own `SEARCH_QUERY`, `STATE_PATH`, and `OUTPUT_DIR` (see the workflow's two
 "Generate feed" steps).
 
-The site root is **Exile Hub** (`web/`) — a Path of Exile launcher dashboard (game tabs,
-a wiki/trade command-palette omnibar, the live league timeline, link tiles, Reddit "Hot",
-and a YouTube-trending panel that reads the feeds above). It's a dependency-free static
-page — `web/index.html` + `web/styles.css` + `web/app.js` — ported from a Claude Design
-component; the workflow copies the three files into `docs/` on each run.
+The site root is **Exile Hub** (`web/exile-hub.dc.html`) — a Path of Exile launcher
+dashboard (game tabs, a wiki/trade command-palette omnibar, the live league timeline, link
+tiles, Reddit "Hot", and a YouTube-trending panel that reads the feeds above). It's a
+[Claude Design](https://claude.ai/design) component: `web/support.js` (the `dc-runtime`)
+auto-boots it in any browser and pulls React from a CDN, so it renders with no build step.
+The workflow deploys the `.dc` as `docs/index.html` plus `docs/support.js`.
+
+**Round-trip with Claude Design.** `web/exile-hub.dc.html` is kept byte-identical to the
+same file in the Claude Design project, so you can edit it locally *or* in the Design editor
+and sync either direction (via Claude Code's DesignSync). See `CLAUDE.md` for the project id
+and the pull/push steps.
 
 The key idea: it **remembers state between runs**. A video is logged **once**, at the
 moment it first becomes trending, and then it is *never re-added to the top of the
@@ -38,10 +44,9 @@ automatically on its first run.)
 
 ```
 poe2_trending.py            # the feed/table generator (stdlib only)
-web/                        # Exile Hub — the static launcher served at the site root
-  index.html               #   markup / shell
-  styles.css               #   styles
-  app.js                   #   behaviour (tabs, omnibar, Reddit + YouTube panels)
+web/                        # Exile Hub — the launcher served at the site root
+  exile-hub.dc.html        #   Claude Design component (canonical; round-trips with Design)
+  support.js               #   dc-runtime (vendored; auto-boots the .dc, loads React from CDN)
 .github/workflows/
   build-feed.yml           # scheduled job: generate feeds, publish Hub, commit to `feed`
 README.md

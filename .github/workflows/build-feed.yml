@@ -72,11 +72,15 @@ jobs:
           OUTPUT_DIR: "published/docs/poe1"
         run: python poe2_trending.py
 
-      # Landing page = the Exile Hub launcher (web/ = index.html + styles.css + app.js on master).
+      # Landing page = the Exile Hub launcher, deployed as the Claude Design .dc component.
+      # support.js is the dc-runtime: it auto-boots on load and pulls React/Babel from a CDN,
+      # so the .dc renders standalone with no build step. Kept byte-identical to the Design
+      # project so DesignSync round-trips (pull/push of exile-hub.dc.html) stay diff-clean.
       - name: Publish Exile Hub landing page
         run: |
-          cp web/index.html web/styles.css web/app.js published/docs/
-          echo "Published Exile Hub landing page (html + css + js)."
+          cp web/exile-hub.dc.html published/docs/index.html
+          cp web/support.js       published/docs/support.js
+          echo "Published Exile Hub (.dc + support.js)."
 
       - name: Commit state + outputs to the data branch
         working-directory: published
