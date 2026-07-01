@@ -9,3 +9,7 @@ __pycache__/
 # These are only local test artifacts here, so keep the code branch clean.
 /data/
 /docs/
+
+# Local dev server artifacts
+gohup-audit.log
+nohup.out
