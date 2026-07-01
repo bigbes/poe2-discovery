@@ -52,11 +52,12 @@ jobs:
           cp web/exile-hub.dc.html published/docs/index.html
           cp web/support.js        published/docs/support.js
           cp web/vendor/react.production.min.js web/vendor/react-dom.production.min.js published/docs/vendor/
+          cp web/favicon.svg web/favicon.ico web/favicon-32.png web/apple-touch-icon.png published/docs/
           # Self-host React so the page never depends on unpkg: support.js skips its own CDN
-          # fetch when window.React/ReactDOM already exist. Also add a no-op favicon to stop
-          # the /favicon.ico 404. Injected ONLY in the deployed copy — the canonical .dc stays
-          # clean so Claude Design (which provides React itself) keeps working + round-trips.
-          INJECT='<link rel="icon" href="data:,"><script src="./vendor/react.production.min.js"></script><script src="./vendor/react-dom.production.min.js"></script>'
+          # fetch when window.React/ReactDOM already exist. Also link the favicon. All injected
+          # ONLY in the deployed copy — the canonical .dc stays clean so Claude Design (which
+          # provides React itself) keeps working + round-trips.
+          INJECT='<link rel="icon" href="./favicon.ico" sizes="any"><link rel="icon" type="image/svg+xml" href="./favicon.svg"><link rel="apple-touch-icon" href="./apple-touch-icon.png"><script src="./vendor/react.production.min.js"></script><script src="./vendor/react-dom.production.min.js"></script>'
           sed -i "s#<script src=\"./support.js\"></script>#${INJECT}<script src=\"./support.js\"></script>#" published/docs/index.html
           grep -q 'vendor/react.production.min.js' published/docs/index.html && echo "Self-hosted React injected." || { echo "injection FAILED"; exit 1; }
           echo "Published Exile Hub (.dc + support.js + vendored React)."
@@ -66,7 +67,8 @@ jobs:
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -A docs/index.html docs/support.js docs/vendor
+          git add -A docs/index.html docs/support.js docs/vendor \
+            docs/favicon.svg docs/favicon.ico docs/favicon-32.png docs/apple-touch-icon.png
           if git diff --cached --quiet; then
             echo "Landing page unchanged this run."
           else
