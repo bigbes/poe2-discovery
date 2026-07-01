@@ -78,6 +78,12 @@ jobs:
           LEAGUES_PATH: "published/docs/leagues.json"
         run: python fetch_leagues.py
 
+      # Patch-notes subpage (scraped + sanitized from poe(2)db).
+      - name: Build patch-notes page
+        env:
+          PATCHNOTES_DIR: "published/docs/patchnotes"
+        run: python fetch_patchnotes.py
+
       # NOTE: the landing page (Exile Hub) is published by the separate publish-hub.yml
       # workflow on push to master — it is intentionally not touched here.
 
