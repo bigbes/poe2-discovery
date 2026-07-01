@@ -137,6 +137,8 @@ a{color:inherit}
 .ov-x{position:absolute;top:14px;right:14px;z-index:3;width:36px;height:36px;border-radius:10px;border:1px solid var(--line);background:rgba(10,11,15,.72);backdrop-filter:blur(4px);color:var(--tx);font-size:15px;cursor:pointer;transition:.12s}
 .ov-x:hover{background:var(--acc);color:#140d02;border-color:transparent}
 .ov-max{position:absolute;top:14px;right:60px;z-index:3;width:36px;height:36px;border-radius:10px;border:1px solid var(--line);background:rgba(10,11,15,.72);backdrop-filter:blur(4px);color:var(--tx);font-size:16px;cursor:pointer;transition:.12s}
+.ov-pip{position:absolute;top:14px;right:106px;z-index:3;width:36px;height:36px;border-radius:10px;border:1px solid var(--line);background:rgba(10,11,15,.72);backdrop-filter:blur(4px);color:var(--tx);cursor:pointer;transition:.12s;display:grid;place-items:center}
+.ov-pip:hover{background:var(--acc);color:#140d02;border-color:transparent}
 .ov-max:hover{background:var(--acc);color:#140d02;border-color:transparent}
 .ov:has(.ov-card.max){padding:0}
 .ov-card.max{width:100%;height:100%;max-width:100%;max-height:100%;border-radius:0;border:0}
@@ -330,6 +332,7 @@ a{color:inherit}
       <button class="ov-x" onClick="{{ onClose }}">✕</button>
 
       <sc-if value="{{ modalIsYt }}" hint-placeholder-val="{{ false }}">
+      <sc-if value="{{ canPip }}" hint-placeholder-val="{{ false }}"><button class="ov-pip" onClick="{{ onPip }}" title="Picture-in-Picture"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="15" rx="2"/><rect x="11" y="11" width="9" height="7" rx="1" fill="currentColor" stroke="none"/></svg></button></sc-if>
       <button class="ov-max" onClick="{{ onToggleMax }}" title="{{ maxTitle }}">{{ maxIcon }}</button>
       <div class="ov-video"><iframe src="{{ ytEmbed }}" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; fullscreen" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen title="YouTube video"></iframe></div>
       <div class="ov-vmeta">
@@ -607,6 +610,36 @@ class Component extends DCLogic {
   // ---- in-hub overlay ----
   openVideo(v) { this.setState({ modal: { type: 'yt', v }, vmax: false }); }
   toggleMax() { this.setState(s => ({ vmax: !s.vmax })); }
+  ytEmbedUrl(v) {
+    const player = this.props.videoPlayer ?? 'youtube';
+    const origin = (typeof location !== 'undefined' && location.origin && location.origin !== 'null') ? '&origin=' + encodeURIComponent(location.origin) : '';
+    const embeds = {
+      youtube: 'https://www.youtube.com/embed/' + v.vid + '?autoplay=1&rel=0' + origin,
+      piped: 'https://piped.video/embed/' + v.vid + '?autoplay=1',
+      invidious: 'https://yewtu.be/embed/' + v.vid + '?autoplay=1'
+    };
+    return embeds[player] || embeds.youtube;
+  }
+  // Vivaldi/Chromium can't attach native PiP to a cross-origin YouTube <iframe>, so we use
+  // the Document Picture-in-Picture API: open a PiP window with a fresh player (kept out of
+  // React's tree to avoid reconciliation conflicts) and close the in-page modal.
+  pipVideo() {
+    const m = this.state.modal;
+    if (!m || m.type !== 'yt' || !(window.documentPictureInPicture)) return;
+    const embed = this.ytEmbedUrl(m.v);
+    window.documentPictureInPicture.requestWindow({ width: 480, height: 270 }).then(pw => {
+      const d = pw.document;
+      d.body.style.margin = '0';
+      d.body.style.background = '#000';
+      const ifr = d.createElement('iframe');
+      ifr.src = embed;
+      ifr.allow = 'autoplay; encrypted-media; picture-in-picture; fullscreen';
+      ifr.allowFullscreen = true;
+      ifr.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;border:0';
+      d.body.appendChild(ifr);
+      this.closeModal();
+    }).catch(() => {});
+  }
   openPost(p) {
     this.setState({ modal: { type: 'reddit', p, comments: [], cstate: 'loading' } });
     this.fetchComments(p);
@@ -623,6 +656,7 @@ class Component extends DCLogic {
       maxIcon: this.state.vmax ? '⤡' : '⤢',
       maxTitle: this.state.vmax ? 'Restore' : 'Maximize',
       onToggleMax: () => this.toggleMax(),
+      canPip: false, onPip: () => {},
       ytEmbed: '', ytTitle: '', ytChannel: '', ytViews: '', ytUrl: '', ytPiped: '', ytInv: '',
       pTitle: '', pFlair: '', pHasFlair: false, pScore: '', pComments: '', pAuthor: '', pUrl: '',
       pTextEl: null, pHasText: false, pImage: '', pHasImage: false, pLink: '', pHasLink: false, pDomain: '',
@@ -631,19 +665,14 @@ class Component extends DCLogic {
     if (!m) return base;
     if (m.type === 'yt') {
       const v = m.v;
-      const player = this.props.videoPlayer ?? 'youtube';
-      const origin = (typeof location !== 'undefined' && location.origin && location.origin !== 'null') ? '&origin=' + encodeURIComponent(location.origin) : '';
-      const embeds = {
-        youtube: 'https://www.youtube.com/embed/' + v.vid + '?autoplay=1&rel=0' + origin,
-        piped: 'https://piped.video/embed/' + v.vid + '?autoplay=1',
-        invidious: 'https://yewtu.be/embed/' + v.vid + '?autoplay=1'
-      };
       return { ...base, modalIsYt: true,
-        ytEmbed: embeds[player] || embeds.youtube,
+        ytEmbed: this.ytEmbedUrl(v),
         ytTitle: v.title, ytChannel: v.channel, ytViews: v.views,
         ytUrl: v.url,
         ytPiped: 'https://piped.video/watch?v=' + v.vid,
-        ytInv: 'https://yewtu.be/watch?v=' + v.vid };
+        ytInv: 'https://yewtu.be/watch?v=' + v.vid,
+        canPip: !!(typeof window !== 'undefined' && window.documentPictureInPicture),
+        onPip: () => this.pipVideo() };
     }
     const p = m.p;
     const comments = (m.comments || []).map(c => ({ ...c, bodyEl: this.mdEl('ov-cbody', c.body) }));
