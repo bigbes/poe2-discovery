@@ -1,0 +1,9 @@
+# Byte-compiled
+__pycache__/
+*.py[cod]
+
+# Local secrets — never commit your API key
+.env
+
+# NOTE: data/ and docs/ are intentionally NOT ignored — the workflow commits
+# the updated state file and generated outputs back to the repo on each run.

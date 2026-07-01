@@ -1,0 +1,53 @@
+name: Build trending feed and table
+
+on:
+  schedule:
+    - cron: "0 */6 * * *"   # every 6 hours (UTC) -- change to taste
+  workflow_dispatch: {}      # adds a manual "Run workflow" button
+
+# Needed so the job can commit the updated state file + outputs back to the repo.
+permissions:
+  contents: write
+
+# Don't let two scheduled runs race on the same commit.
+concurrency:
+  group: trending-feed
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Generate feed + chronological table
+        env:
+          YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
+          # --- customise below; all optional ---
+          SEARCH_QUERY: "Path of Exile 2"
+          LOOKBACK_DAYS: "4"
+          TREND_TOP_N: "20"
+          MIN_TREND_VELOCITY: "0"
+          FEED_MAX: "50"
+          EXCLUDE_SHORTS: "false"
+          STATE_PATH: "data/state.json"
+          OUTPUT_DIR: "docs"
+          # After your first publish you'll know the URL; fill it in (optional):
+          # FEED_SELF_URL: "https://YOUR_USERNAME.github.io/YOUR_REPO/feed.xml"
+        run: python poe2_trending.py
+
+      - name: Commit state + outputs
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A data docs
+          if git diff --cached --quiet; then
+            echo "Nothing changed this run."
+          else
+            git commit -m "Update trending feed/table ($(date -u +%Y-%m-%dT%H:%MZ)) [skip ci]"
+            git push
+          fi
