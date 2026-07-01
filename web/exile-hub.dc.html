@@ -196,7 +196,7 @@ a{color:inherit}
     <div class="topr">
       <div class="tabs">
         <button class="tab {{ cls2 }}" onClick="{{ on2 }}">Path of Exile 2 <span class="v">0.5</span></button>
-        <button class="tab {{ cls1 }}" onClick="{{ on1 }}">Path of Exile <span class="v">3.26</span></button>
+        <button class="tab {{ cls1 }}" onClick="{{ on1 }}">Path of Exile <span class="v">3.28</span></button>
       </div>
       <a class="launch" href="{{ steamHref }}"><span class="pl">▶</span>Launch via Steam</a>
     </div>
@@ -407,12 +407,12 @@ class Component extends DCLogic {
         ]
       },
       poe1: {
-        tag: 'Wraeclast · 3.26 League',
+        tag: 'Wraeclast · 3.28 League',
         steam: 'steam://rungameid/238960',
         wikiApi: 'https://www.poewiki.net',
         wikiSearch: 'https://www.poewiki.net/index.php?search=',
         trade: 'https://www.pathofexile.com/trade',
-        ytFeed: 'https://bigbes.github.io/poe2-discovery/poe/feed.xml',
+        ytFeed: 'https://bigbes.github.io/poe2-discovery/poe1/feed.xml',
         ytSearch: 'https://www.youtube.com/results?search_query=Path+of+Exile',
         timelineSlug: 'path-of-exile',
         timelinePage: 'https://www.arpg-timeline.com/game/path-of-exile',
@@ -477,7 +477,8 @@ class Component extends DCLogic {
     if (!wrap || !ifr) return;
     // Render at natural size (full-size, readable text), crop the embed's
     // empty bottom padding via the wrapper's fixed height + overflow:hidden.
-    const CROP = this.props.timelineHeight ?? 248;
+    // PoE1's widget shows an extra "Next league" + countdown row, so it needs more height.
+    const CROP = (this.props.timelineHeight ?? 248) + (this.gameKey() === 'poe1' ? 100 : 0);
     ifr.style.width = '100%';
     ifr.style.maxWidth = '720px';
     ifr.style.margin = '0 auto';
