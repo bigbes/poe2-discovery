@@ -32,6 +32,12 @@ SCOUT = "https://api.poe2scout.com"
 NINJA_POE2 = "https://poe.ninja/poe2/api/economy/exchange/current/overview"
 POECDN = "https://web.poecdn.com"
 
+# poe.ninja PoE2 "exchange" economy tabs (the ?type= values that return items).
+NINJA_TYPES = [
+    "Currency", "Fragments", "Runes", "Essences", "Expedition", "Ritual",
+    "Breach", "Abyss", "Delirium", "Idols", "UncutGems", "LineageSupportGems", "Verisium",
+]
+
 # Safety cap so a runaway wiki never balloons the index (weekly, so generous).
 MAX_WIKI_PAGES = 60000
 
@@ -117,21 +123,27 @@ def scout_uniques(slug):
     return out
 
 
-def ninja_currency(league_name):
-    """PoE2 currency names + icons from poe.ninja."""
-    url = NINJA_POE2 + "?" + urlencode({"league": league_name, "type": "Currency"})
-    data = get_json(url)
+def ninja_economy(league_name):
+    """PoE2 economy item names + icons from poe.ninja, across every exchange tab."""
     out = []
-    for it in data.get("items", []):
-        name = it.get("name")
-        if not name:
+    for t in NINJA_TYPES:
+        url = NINJA_POE2 + "?" + urlencode({"league": league_name, "type": t})
+        try:
+            data = get_json(url)
+        except (HTTPError, URLError, ValueError, OSError) as e:
+            print("  warn: ninja %s failed: %s" % (t, e), file=sys.stderr)
             continue
-        img = it.get("image", "")
-        out.append({
-            "n": name, "k": "currency",
-            "u": WIKI["poe2"] + "/wiki/" + quote(name.replace(" ", "_")),
-            "i": (POECDN + img) if img.startswith("/") else img,
-        })
+        for it in data.get("items", []):
+            name = it.get("name")
+            if not name:
+                continue
+            img = it.get("image", "")
+            out.append({
+                "n": name, "k": "currency",
+                "u": WIKI["poe2"] + "/wiki/" + quote(name.replace(" ", "_")),
+                "i": (POECDN + img) if img.startswith("/") else img,
+            })
+        time.sleep(0.15)  # be polite between tabs
     return out
 
 
@@ -168,7 +180,7 @@ def build_game(game):
         if slug:
             entries += try_source("scout uniques (%s)" % slug, lambda: scout_uniques(slug))
         if name:
-            entries += try_source("ninja currency", lambda: ninja_currency(name))
+            entries += try_source("ninja economy", lambda: ninja_economy(name))
     merged = merge(entries)
     print("  -> %d unique entries" % len(merged))
     return merged
