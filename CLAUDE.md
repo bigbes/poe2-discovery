@@ -108,6 +108,14 @@ in the game tabs + tag, falling back to hardcoded `0.5`/`3.28` if the file is mi
 silently break the Hub's parser. Each game's `ytFeed` URL is hardcoded in the component's `raw`
 map; keep it in sync with the feed's `OUTPUT_DIR`.
 
+**Omnibar completion** loads a weekly-built index `./search/<game>.json` (same-origin) and
+matches locally (`fetchIndex`/`localMatch`: prefix hits first, then substring, cap 8), falling
+back to the live wiki `opensearch` when the index isn't loaded or a query has no local hits.
+`build_search_index.py` builds it server-side (no CORS on the sources): wiki `allpages` titles
+(both games) + PoE2 scout uniques (name/icon/base type, current league via scout's `IsCurrent`)
++ PoE2 ninja currency. Entries are compact `{n,k,u,i?,b?}`; unique/currency carry icons.
+Run weekly by `build-search-index.yml`. Sizes: poe2 ~98 KB gz, poe1 ~235 KB gz.
+
 **DesignSync round-trip** (via Claude Code's DesignSync tool; there is no user-facing CLI —
 ask Claude to run it): project id `5eb697e8-0de0-47dd-874c-41f917c0447f`, file `Exile Hub.dc.html`.
 - **Pull** (Design → repo): `get_file "Exile Hub.dc.html"` → write to `web/exile-hub.dc.html`.

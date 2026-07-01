@@ -45,12 +45,14 @@ automatically on its first run.)
 ```
 poe2_trending.py            # the feed/table generator (stdlib only)
 fetch_leagues.py            # writes docs/leagues.json (current PoE1/PoE2 league names)
+build_search_index.py       # writes docs/search/*.json (omnibar completion index)
 web/                        # Exile Hub — the launcher served at the site root
   exile-hub.dc.html        #   Claude Design component (canonical; round-trips with Design)
   support.js               #   dc-runtime (vendored; auto-boots the .dc, loads React from CDN)
 .github/workflows/
   build-feed.yml           # scheduled (6h): generate both feeds, commit to `feed`
   publish-hub.yml          # on push to master (web/**): publish the Exile Hub landing page
+  build-search-index.yml   # weekly: build the omnibar search index (docs/search/*.json)
 README.md
 ```
 

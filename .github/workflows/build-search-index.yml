@@ -1,0 +1,62 @@
+name: Build search index
+
+# Weekly client-side search index for the Exile Hub omnibar (wiki titles + PoE2 scout
+# uniques + PoE2 ninja currency). Written to the feed branch's docs/search/ so the Hub
+# can load it same-origin and do instant local completion. Sources have no browser CORS,
+# hence server-side. Cheap, so weekly is plenty.
+on:
+  schedule:
+    - cron: "0 4 * * 1"   # Mondays 04:00 UTC
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+# Share the feed-branch write lock with the other workflows.
+concurrency:
+  group: trending-feed
+  cancel-in-progress: false
+
+env:
+  DATA_BRANCH: feed
+
+jobs:
+  index:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Check out (or create) the data branch
+        env:
+          REPO_URL: "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git"
+        run: |
+          if git ls-remote --exit-code --heads "$REPO_URL" "$DATA_BRANCH" >/dev/null 2>&1; then
+            git clone --branch "$DATA_BRANCH" --single-branch --depth 1 "$REPO_URL" published
+          else
+            git clone --depth 1 "$REPO_URL" published
+            git -C published checkout --orphan "$DATA_BRANCH"
+            git -C published rm -rf . >/dev/null 2>&1 || true
+          fi
+
+      - name: Build search index
+        env:
+          SEARCH_DIR: "published/docs/search"
+        run: python build_search_index.py
+
+      - name: Commit search index to the data branch
+        working-directory: published
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A docs/search
+          if git diff --cached --quiet; then
+            echo "Search index unchanged this run."
+          else
+            git commit -m "Update search index ($(date -u +%Y-%m-%dT%H:%MZ)) [skip ci]"
+            git push origin "HEAD:$DATA_BRANCH"
+          fi
