@@ -108,11 +108,16 @@ def _coe_link(id_base):
     return "https://www.craftofexile.com/?game=poe2&b=%s%s" % (id_base, _COE_VIEW)
 
 
-def _coe_attr_tags(imgurl):
+COE_IMG = "https://www.craftofexile.com/images/game_poe2/"
+
+
+def _coe_attr(imgurl):
+    """(search_tag, display) for a base's attribute, e.g. ('str dex', 'STR/DEX')."""
     m = _COE_ATTR.search(imgurl or "")
     if not m:
-        return ""
-    return " ".join(p.lower() for p in re.findall(r"[A-Z][a-z]+", m.group(1)))
+        return "", ""
+    parts = re.findall(r"[A-Z][a-z]+", m.group(1))
+    return " ".join(p.lower() for p in parts), "/".join(p.upper() for p in parts)
 
 
 def coe_bases():
@@ -127,13 +132,20 @@ def coe_bases():
         name = b.get("name_bitem")
         if not name:
             continue
+        img = b.get("imgurl") or ""
         e = {"n": name, "k": "base",
              "u": WIKI["poe2"] + "/wiki/" + quote(name.replace(" ", "_"))}
         if b.get("id_base"):
             e["x"] = _coe_link(b["id_base"])          # /coe opens the CoE base picker
-        tags = _coe_attr_tags(b.get("imgurl"))
-        if tags:
-            e["t"] = tags                              # searchable attribute (str/dex/int)
+        if img:
+            e["i"] = COE_IMG + img                     # per-base icon
+        tag, disp = _coe_attr(img)
+        if tag:
+            e["t"] = tag                               # searchable attribute (str/dex/int)
+        lvl = str(b.get("drop_level") or "").strip()
+        sub = " · ".join([p for p in (disp, ("ilvl " + lvl) if lvl not in ("", "0") else "") if p])
+        if sub:
+            e["b"] = sub                               # shown under the name: "DEX · ilvl 1"
         out.append(e)
     # CoE's attribute-grouped categories, e.g. "Boots (DEX)" -> that exact base group.
     for b in data.get("bases", {}).get("seq", []):
