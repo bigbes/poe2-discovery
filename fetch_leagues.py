@@ -40,9 +40,21 @@ def current_league(url):
     return None
 
 
+def scout_slug():
+    """poe2scout's short league slug (e.g. 'runes') — not derivable from the league name."""
+    req = Request("https://api.poe2scout.com/poe2/Leagues",
+                  headers={"User-Agent": UA, "Accept": "application/json"})
+    with urlopen(req, timeout=30) as r:
+        for lg in json.loads(r.read().decode("utf-8")):
+            if lg.get("IsCurrent"):
+                return lg.get("ShortName")
+    return None
+
+
 def main():
     out_path = os.environ.get("LEAGUES_PATH", "docs/leagues.json")
-    result = {"updated": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")}
+    result = {"version": 1,
+              "updated": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")}
     for game, url in ENDPOINTS.items():
         try:
             name = current_league(url)
@@ -54,6 +66,15 @@ def main():
             print(f"{game}: {name}")
         else:
             print(f"{game}: (no league found; Hub will fall back)", file=sys.stderr)
+
+    # poe2scout's league slug for the Economy tile (its own ShortName, not the league name)
+    try:
+        slug = scout_slug()
+        if slug and "poe2" in result:
+            result["poe2"]["scout"] = slug
+            print(f"poe2 scout slug: {slug}")
+    except (HTTPError, URLError, ValueError, OSError) as e:
+        print(f"warn: scout slug fetch failed: {e}", file=sys.stderr)
 
     d = os.path.dirname(out_path)
     if d:
