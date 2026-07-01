@@ -68,6 +68,12 @@ a{color:inherit}
 .feat{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:14px}
 .ftile{display:flex;flex-direction:column;background:var(--panel);border:1px solid var(--line);border-radius:15px;padding:18px;text-decoration:none;color:var(--tx);position:relative;transition:.15s}
 .ftile:hover{border-color:var(--acc);transform:translateY(-2px)}
+.ftile-split{flex-direction:row;padding:0;overflow:hidden}
+.ftile-split:hover{transform:none}
+.fhalf{position:relative;flex:1;min-width:0;display:flex;flex-direction:column;justify-content:center;padding:18px 14px;text-decoration:none;color:var(--tx);transition:.15s}
+.fhalf+.fhalf{border-left:1px solid var(--line)}
+.fhalf:hover{background:var(--panel2)}
+.fhalf:hover .ft-l{color:var(--acc)}
 .chip{position:relative;width:44px;height:44px;border-radius:12px;background:var(--panel2);display:grid;place-items:center;border:1px solid var(--line);margin-bottom:14px;overflow:hidden;color:var(--acc);font:700 19px 'Cinzel'}
 .chip img{position:absolute;inset:0;margin:auto;width:24px;height:24px;border-radius:5px;display:block;background:var(--panel2)}
 .ft-l{font:600 15px 'Sora'}
@@ -242,12 +248,24 @@ a{color:inherit}
 
   <div class="feat">
     <sc-for list="{{ data.featured }}" as="t" hint-placeholder-count="4">
+      <sc-if value="{{ t.normal }}" hint-placeholder-val="{{ true }}">
       <a class="ftile" href="{{ t.url }}" target="_blank" rel="noreferrer">
         <div class="chip">{{ t.mono }}<img src="{{ t.icon }}" alt="" loading="lazy" onError="{{ onIconError }}"/></div>
         <div class="ft-l">{{ t.label }}</div>
         <div class="ft-s">{{ t.sub }}</div>
         <span class="ft-go">↗</span>
       </a>
+      </sc-if>
+      <sc-if value="{{ t.split }}" hint-placeholder-val="{{ false }}">
+      <div class="ftile ftile-split">
+        <a class="fhalf" href="{{ t.leftUrl }}" target="_blank" rel="noreferrer">
+          <div class="ft-l">{{ t.leftLabel }}</div><div class="ft-s">{{ t.leftSub }}</div><span class="ft-go">↗</span>
+        </a>
+        <a class="fhalf" href="{{ t.rightUrl }}" target="_blank" rel="noreferrer">
+          <div class="ft-l">{{ t.rightLabel }}</div><div class="ft-s">{{ t.rightSub }}</div><span class="ft-go">↗</span>
+        </a>
+      </div>
+      </sc-if>
     </sc-for>
   </div>
 
@@ -391,7 +409,7 @@ class Component extends DCLogic {
           { label: 'Official Site', sub: 'pathofexile.com/poe2', url: 'https://www.pathofexile.com/poe2' },
           { label: 'Trade', sub: 'Official market', url: 'https://www.pathofexile.com/trade2' },
           { label: 'PoE 2 Wiki', sub: 'poe2wiki.net', url: 'https://www.poe2wiki.net' },
-          { label: 'PoE2 Scout', sub: 'Prices & economy', url: 'https://poe2scout.com' }
+          { split: true, label: 'Economy' }
         ],
         groups: [
           { title: 'Economy & Builds', links: [
@@ -512,6 +530,25 @@ class Component extends DCLogic {
   leagueTag(g) {
     const n = this.leagueName(g);
     return n ? ('Wraeclast · ' + n + ' League') : this.raw[g].tag;
+  }
+  // League slugs for the PoE2 economy tile. ninja = league name lowercased w/o spaces
+  // ("Runes of Aldur" -> "runesofaldur"); scout has its own ShortName from leagues.json.
+  ninjaSlug() { return (this.leagueName('poe2') || 'Standard').toLowerCase().replace(/\s+/g, ''); }
+  scoutSlug() {
+    const L = this.state.leagues;
+    return (L && L.poe2 && L.poe2.scout) || (this.leagueName('poe2') || 'standard').toLowerCase().split(/\s+/)[0];
+  }
+  featuredTiles(data) {
+    return data.featured.map(t => {
+      if (t.split) return {
+        split: true, normal: false,
+        leftLabel: 'PoE2 Scout', leftSub: 'Economy',
+        leftUrl: 'https://poe2scout.com/poe2/' + this.scoutSlug() + '/economy',
+        rightLabel: 'poe.ninja', rightSub: 'Currency',
+        rightUrl: 'https://poe.ninja/poe2/economy/' + this.ninjaSlug() + '/currency'
+      };
+      return { ...t, normal: true, icon: this.fav(t.url), mono: (t.label || '?').trim().charAt(0).toUpperCase() };
+    });
   }
 
   gameKey() { return this.state.game ?? (this.props.startGame ?? 'poe2'); }
@@ -1069,7 +1106,7 @@ class Component extends DCLogic {
     const enriched = {
       ...data,
       tag: this.leagueTag(g),
-      featured: this.withIcons(data.featured),
+      featured: this.featuredTiles(data),
       groups: data.groups.map(gr => ({ ...gr, links: this.withIcons(gr.links) }))
     };
     const rawRows = this.buildRows();
