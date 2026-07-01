@@ -8,11 +8,11 @@ and **Path of Exile 1** at `/poe1/`. Each feed is just another invocation of the
 with its own `SEARCH_QUERY`, `STATE_PATH`, and `OUTPUT_DIR` (see the workflow's two
 "Generate feed" steps).
 
-The site root is **Exile Hub** (`web/index.html`) — a Path of Exile launcher dashboard
-(game tabs, a wiki/trade command-palette omnibar, the live league timeline, link tiles,
-Reddit "Hot", and a YouTube-trending panel that reads the feeds above). It's a standalone
-vanilla-JS page, ported from a Claude Design component; the workflow copies it to
-`docs/index.html` on each run.
+The site root is **Exile Hub** (`web/`) — a Path of Exile launcher dashboard (game tabs,
+a wiki/trade command-palette omnibar, the live league timeline, link tiles, Reddit "Hot",
+and a YouTube-trending panel that reads the feeds above). It's a dependency-free static
+page — `web/index.html` + `web/styles.css` + `web/app.js` — ported from a Claude Design
+component; the workflow copies the three files into `docs/` on each run.
 
 The key idea: it **remembers state between runs**. A video is logged **once**, at the
 moment it first becomes trending, and then it is *never re-added to the top of the
@@ -33,6 +33,22 @@ each run to a **separate `feed` branch** — never to `master`. The code branch 
 code-only; the `feed` branch carries the accumulating state + published outputs, so the
 history survives and is itself version-controlled. (The workflow creates the `feed` branch
 automatically on its first run.)
+
+## Repository layout
+
+```
+poe2_trending.py            # the feed/table generator (stdlib only)
+web/                        # Exile Hub — the static launcher served at the site root
+  index.html               #   markup / shell
+  styles.css               #   styles
+  app.js                   #   behaviour (tabs, omnibar, Reddit + YouTube panels)
+.github/workflows/
+  build-feed.yml           # scheduled job: generate feeds, publish Hub, commit to `feed`
+README.md
+```
+
+`master` holds only the above (code). Generated state + published site live on the
+separate `feed` branch — see below.
 
 ## What you need
 

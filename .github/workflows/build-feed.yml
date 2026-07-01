@@ -72,11 +72,11 @@ jobs:
           OUTPUT_DIR: "published/docs/poe1"
         run: python poe2_trending.py
 
-      # Landing page = the Exile Hub launcher (committed at web/index.html on master).
+      # Landing page = the Exile Hub launcher (web/ = index.html + styles.css + app.js on master).
       - name: Publish Exile Hub landing page
         run: |
-          cp web/index.html published/docs/index.html
-          echo "Published Exile Hub landing page."
+          cp web/index.html web/styles.css web/app.js published/docs/
+          echo "Published Exile Hub landing page (html + css + js)."
 
       - name: Commit state + outputs to the data branch
         working-directory: published
