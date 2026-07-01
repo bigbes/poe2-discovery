@@ -628,15 +628,18 @@ class Component extends DCLogic {
   pipVideo() {
     const m = this.state.modal;
     if (!m || m.type !== 'yt' || !(window.documentPictureInPicture)) return;
-    const embed = this.ytEmbedUrl(m.v, true);   // omit &origin to avoid YouTube error 153
+    // Load a same-origin wrapper page (real https URL) into the PiP window, which then embeds
+    // YouTube — giving the player a valid referrer. A bare YouTube iframe in the about:blank
+    // PiP window has no referrer and fails with "error 153". Absolute URL because about:blank
+    // has no base to resolve a relative path against.
+    const wrapper = new URL('pip-player.html?v=' + encodeURIComponent(m.v.vid), location.href).href;
     window.documentPictureInPicture.requestWindow({ width: 480, height: 270 }).then(pw => {
       const d = pw.document;
       d.documentElement.style.cssText = 'margin:0;height:100%';
       d.body.style.cssText = 'margin:0;height:100%;background:#000';
       const ifr = d.createElement('iframe');
-      ifr.src = embed;
+      ifr.src = wrapper;
       ifr.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; fullscreen';
-      ifr.setAttribute('referrerpolicy', 'strict-origin-when-cross-origin');
       ifr.allowFullscreen = true;
       ifr.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;border:0';
       d.body.appendChild(ifr);

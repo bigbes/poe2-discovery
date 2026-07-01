@@ -53,6 +53,7 @@ jobs:
           cp web/support.js        published/docs/support.js
           cp web/vendor/react.production.min.js web/vendor/react-dom.production.min.js published/docs/vendor/
           cp web/favicon.svg web/favicon.ico web/favicon-32.png web/apple-touch-icon.png published/docs/
+          cp web/pip-player.html published/docs/
           # Self-host React so the page never depends on unpkg: support.js skips its own CDN
           # fetch when window.React/ReactDOM already exist. Also link the favicon. All injected
           # ONLY in the deployed copy — the canonical .dc stays clean so Claude Design (which
@@ -67,7 +68,7 @@ jobs:
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -A docs/index.html docs/support.js docs/vendor \
+          git add -A docs/index.html docs/support.js docs/vendor docs/pip-player.html \
             docs/favicon.svg docs/favicon.ico docs/favicon-32.png docs/apple-touch-icon.png
           if git diff --cached --quiet; then
             echo "Landing page unchanged this run."
