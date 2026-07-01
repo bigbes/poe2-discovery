@@ -876,21 +876,35 @@ class Component extends DCLogic {
   // The '/' (command) and '?' (jump) prefixes are tracked as a mode in state.prefix and are
   // NOT shown as text in the input; the lead icon reflects the mode. Deleting back past the
   // empty text (Backspace on empty, handled in onKeyBar) clears the mode.
+  // state.prefix holds the hidden mode: '' (default), '?' (jump), '/' (command, token still
+  // being typed), or '/w ' (a committed command — its token is hidden too). full() rebuilds
+  // the logical query so the existing parser is unchanged.
   full() { return this.state.prefix + this.state.q; }
   onQueryInput(v) {
     let prefix = this.state.prefix;
-    // Typing '/' or '?' as the first character (while in default mode) enters that mode
+    // Typing '/' or '?' as the first character (in default mode) enters that mode
     // instead of printing the character.
     if (!prefix && (v.charAt(0) === '/' || v.charAt(0) === '?')) {
       prefix = v.charAt(0);
       v = v.slice(1);
     }
-    this.setState({ prefix, q: v, open: true, hl: -1 });
-    if (prefix === '?') { this.setState({ suggestions: [] }); return; }
+    // In bare '/' mode, finishing a command token with a space commits it: '/' + 'w ' -> '/w '.
     if (prefix === '/') {
       const sp = v.indexOf(' ');
-      const c = sp > -1 ? this.findCmd(this.registry(this.gameKey()), v.slice(0, sp)) : null;
-      if (c && c.native === 'wiki') this.fetchSuggest(v.slice(sp + 1));
+      if (sp > 0) {
+        const c = this.findCmd(this.registry(this.gameKey()), v.slice(0, sp));
+        if (c) { prefix = '/' + c.keys[0] + ' '; v = v.slice(sp + 1); }
+      }
+    }
+    this.setState({ prefix, q: v, open: true, hl: -1 });
+    const head = prefix.charAt(0);
+    if (head === '?') { this.setState({ suggestions: [] }); return; }
+    if (head === '/') {
+      let cmdTok, query;
+      if (prefix.length > 1) { cmdTok = prefix.slice(1).trim(); query = v; }   // committed '/w '
+      else { const sp = v.indexOf(' '); cmdTok = sp > -1 ? v.slice(0, sp) : v; query = sp > -1 ? v.slice(sp + 1) : ''; }
+      const c = this.findCmd(this.registry(this.gameKey()), cmdTok);
+      if (c && c.native === 'wiki' && query.trim()) this.fetchSuggest(query);
       else this.setState({ suggestions: [] });
       return;
     }
@@ -945,7 +959,7 @@ class Component extends DCLogic {
   }
 
   pickCommand(c) {
-    this.setState({ prefix: '/', q: c.keys[0] + ' ', hl: -1, open: true, suggestions: [] });
+    this.setState({ prefix: '/' + c.keys[0] + ' ', q: '', hl: -1, open: true, suggestions: [] });
     if (this._input) this._input.focus();
   }
   runCommand(c, query) {
@@ -993,9 +1007,12 @@ class Component extends DCLogic {
         if (c) this.pickCommand(c);
       }
     } else if (e.key === 'Backspace' && this.state.prefix && this.state.q === '') {
-      // deleting the "hidden" prefix char returns to default mode
+      // Backspace on empty text peels one mode level: committed '/w ' -> bare '/' with the
+      // token editable; bare '/' or '?' -> default.
       e.preventDefault();
-      this.setState({ prefix: '', suggestions: [], hl: -1, open: true });
+      const p = this.state.prefix;
+      if (p.length > 1) this.setState({ prefix: p.charAt(0), q: p.slice(1).trim(), suggestions: [], hl: -1, open: true });
+      else this.setState({ prefix: '', suggestions: [], hl: -1, open: true });
     } else if (e.key === 'Escape') { this.setState({ open: false, hl: -1 }); }
   }
 
@@ -1016,10 +1033,10 @@ class Component extends DCLogic {
       onClick: () => r.run(),
       onHover: () => this.setState({ hl: i })
     }));
-    const pre = this.state.prefix;
-    const lead = pre === '/' ? '/' : pre === '?' ? '?' : '⌕';
-    const dropHint = pre === '/' ? 'Site commands · ↵ run · Tab to complete · ⌫ exits'
-      : pre === '?' ? 'Jump to a site · ↵ opens it · ⌫ exits'
+    const pre = this.state.prefix, head = pre.charAt(0);
+    const lead = head === '/' ? pre.trim() : head === '?' ? '?' : '⌕';
+    const dropHint = head === '/' ? 'Site commands · ↵ run · Tab to complete · ⌫ exits'
+      : head === '?' ? 'Jump to a site · ↵ opens it · ⌫ exits'
       : mode === 'trade' ? 'Trade · ↵ opens the market' : 'Wiki suggestions · ↵ opens page';
     return {
       acc: this.accStyle(g),
