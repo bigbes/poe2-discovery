@@ -43,7 +43,7 @@ a{color:inherit}
 .searchbar input{flex:1;background:transparent;border:0;outline:0;color:var(--tx);font:400 15px 'Sora'}
 .searchbar input::placeholder{color:var(--mut)}
 .k{font:600 10px 'JetBrains Mono';color:var(--mut);border:1px solid var(--line);padding:5px 9px;border-radius:7px;letter-spacing:.5px;white-space:nowrap}
-.drop{position:absolute;top:62px;left:0;right:0;background:#10121a;border:1px solid var(--line);border-radius:13px;padding:6px;box-shadow:0 24px 60px -20px rgba(0,0,0,.9);overflow:hidden;max-height:420px;overflow-y:auto}
+.drop{position:absolute;top:62px;left:0;right:0;background:#10121a;border:1px solid var(--line);border-radius:13px;padding:6px;box-shadow:0 24px 60px -20px rgba(0,0,0,.9);overflow:hidden;max-height:358px;overflow-y:auto}
 .drow{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:9px;cursor:pointer;transition:.1s}
 .drow:hover,.drow.hl{background:var(--panel2)}
 .drow.hl{box-shadow:inset 0 0 0 1px var(--line)}
@@ -852,9 +852,9 @@ class Component extends DCLogic {
       for (let i = 0; i < terms.length; i++) { if (hay.indexOf(terms[i]) === -1) { ok = false; break; } }
       if (!ok) continue;
       (name.indexOf(first) === 0 ? starts : has).push(e);
-      if (starts.length >= 8) break;
+      if (starts.length >= 50) break;
     }
-    return starts.concat(has).slice(0, 8).map(e => ({
+    return starts.concat(has).slice(0, 50).map(e => ({
       title: e.n, pageUrl: e.u, kind: e.k, icon: e.i || '', sub: e.b || '', x: e.x || ''
     }));
   }
@@ -953,8 +953,8 @@ class Component extends DCLogic {
             sub: c.hint, action: '↵', run: () => this.runCommand(c, query)
           });
           if (query.trim()) {
-            if (c.native === 'wiki') wikiRows(6).forEach(r => rows.push(r));
-            else if (c.kinds) this.state.suggestions.slice(0, 6).forEach(s => rows.push({
+            if (c.native === 'wiki') wikiRows(50).forEach(r => rows.push(r));
+            else if (c.kinds) this.state.suggestions.slice(0, 50).forEach(s => rows.push({
               badge: s.icon ? '' : (kindBadge[s.kind] || ''), icon: s.icon || '',
               title: s.title, sub: s.sub || '', action: '↗', run: () => this.openUrl(s.x || c.search(s.title))
             }));
@@ -970,7 +970,7 @@ class Component extends DCLogic {
     } else if (this.modeKey() === 'trade') {
       rows.push({ badge: 'trade', title: q.trim() ? ('Open Trade — search “' + q.trim() + '” there') : 'Open Official Trade', sub: this.host(this.raw[g].trade), action: '↗', run: () => this.openUrl(this.raw[g].trade) });
     } else {
-      wikiRows(8).forEach(r => rows.push(r));
+      wikiRows(50).forEach(r => rows.push(r));
     }
     this._rows = rows;
     return rows;
