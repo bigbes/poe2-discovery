@@ -16,3 +16,7 @@ nohup.out
 
 # CLAUDE.md is globally ignored on this machine; keep it tracked in THIS repo.
 !CLAUDE.md
+
+# React is vendored for the deployed Hub; globally-ignored "vendor" must stay tracked here.
+!web/vendor/
+!web/vendor/*
