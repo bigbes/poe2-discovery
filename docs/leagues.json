@@ -3,7 +3,9 @@
     "league": "Mirage"
   },
   "poe2": {
-    "league": "Runes of Aldur"
+    "league": "Runes of Aldur",
+    "scout": "runes"
   },
-  "updated": "2026-07-01T06:34:46Z"
+  "updated": "2026-07-01T09:27:17Z",
+  "version": 1
 }
