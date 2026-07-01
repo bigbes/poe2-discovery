@@ -1,0 +1,67 @@
+name: Publish Exile Hub
+
+# Republish the landing page (Exile Hub) whenever it changes on master.
+# The Exile Hub is a Claude Design .dc component: web/support.js (the dc-runtime)
+# auto-boots it and pulls React/Babel from a CDN, so it renders standalone with no build.
+# It is deployed to the `feed` branch's docs/ (index.html + support.js) that GitHub Pages serves.
+on:
+  push:
+    branches: [master]
+    paths:
+      - "web/**"
+      - ".github/workflows/publish-hub.yml"
+  workflow_dispatch: {}   # manual "Run workflow" button
+
+permissions:
+  contents: write
+
+# Share the feed-branch write lock with build-feed.yml so the two never race on a push.
+concurrency:
+  group: trending-feed
+  cancel-in-progress: false
+
+env:
+  DATA_BRANCH: feed
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      # Data branch — carries the published docs/. Checked out into ./published,
+      # created as an orphan on the very first run (matches build-feed.yml).
+      - name: Check out (or create) the data branch
+        env:
+          REPO_URL: "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git"
+        run: |
+          if git ls-remote --exit-code --heads "$REPO_URL" "$DATA_BRANCH" >/dev/null 2>&1; then
+            echo "Data branch '$DATA_BRANCH' exists — cloning it."
+            git clone --branch "$DATA_BRANCH" --single-branch --depth 1 "$REPO_URL" published
+          else
+            echo "Data branch '$DATA_BRANCH' not found — creating it as an orphan."
+            git clone --depth 1 "$REPO_URL" published
+            git -C published checkout --orphan "$DATA_BRANCH"
+            git -C published rm -rf . >/dev/null 2>&1 || true
+          fi
+
+      - name: Publish Exile Hub landing page
+        run: |
+          mkdir -p published/docs
+          cp web/exile-hub.dc.html published/docs/index.html
+          cp web/support.js       published/docs/support.js
+          echo "Published Exile Hub (.dc + support.js)."
+
+      - name: Commit landing page to the data branch
+        working-directory: published
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A docs/index.html docs/support.js
+          if git diff --cached --quiet; then
+            echo "Landing page unchanged this run."
+          else
+            git commit -m "Publish Exile Hub landing page ($(date -u +%Y-%m-%dT%H:%MZ)) [skip ci]"
+            git push origin "HEAD:$DATA_BRANCH"
+          fi
