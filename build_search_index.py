@@ -19,6 +19,7 @@ Output dir: SEARCH_DIR (default docs/search). Stdlib only.
 """
 import json
 import os
+import re
 import sys
 import time
 from urllib.parse import urlencode, quote
@@ -31,6 +32,7 @@ WIKI = {"poe1": "https://www.poewiki.net", "poe2": "https://www.poe2wiki.net"}
 SCOUT = "https://api.poe2scout.com"
 NINJA_POE2 = "https://poe.ninja/poe2/api/economy/exchange/current/overview"
 POECDN = "https://web.poecdn.com"
+COE_POE2 = "https://www.craftofexile.com/json/poe2/main/poec_data.json"
 
 # poe.ninja PoE2 "exchange" economy tabs (the ?type= values that return items).
 NINJA_TYPES = [
@@ -53,6 +55,37 @@ def get_json(url, timeout=40, retries=3):
             last = e
             time.sleep(1.5 * (attempt + 1))  # transient drop / rate limit — back off and retry
     raise last
+
+
+def get_text(url, timeout=40, retries=3):
+    req = Request(url, headers={"User-Agent": UA})
+    last = None
+    for attempt in range(retries):
+        try:
+            with urlopen(req, timeout=timeout) as r:
+                return r.read().decode("utf-8")
+        except (URLError, OSError) as e:
+            last = e
+            time.sleep(1.5 * (attempt + 1))
+    raise last
+
+
+# --------------------------------------------------------------------------- #
+def coe_bases():
+    """PoE2 item base names from Craft of Exile (served as a JS `poecd={...}` payload)."""
+    raw = get_text(COE_POE2)
+    m = re.match(r"^\s*[A-Za-z_$][\w$]*\s*=\s*", raw)   # strip the `poecd=` prefix
+    data = json.loads((raw[m.end():] if m else raw).rstrip().rstrip(";"))
+    out = []
+    for b in data.get("bitems", {}).get("seq", []):
+        name = b.get("name_bitem")
+        if not name:
+            continue
+        out.append({
+            "n": name, "k": "base",
+            "u": WIKI["poe2"] + "/wiki/" + quote(name.replace(" ", "_")),
+        })
+    return out
 
 
 # --------------------------------------------------------------------------- #
@@ -181,6 +214,7 @@ def build_game(game):
             entries += try_source("scout uniques (%s)" % slug, lambda: scout_uniques(slug))
         if name:
             entries += try_source("ninja economy", lambda: ninja_economy(name))
+        entries += try_source("coe bases", lambda: coe_bases())
     merged = merge(entries)
     print("  -> %d unique entries" % len(merged))
     return merged
