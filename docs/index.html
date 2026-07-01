@@ -838,18 +838,24 @@ class Component extends DCLogic {
       .catch(() => { this.setState(s => ({ idx: { ...s.idx, [game]: [] } })); });
   }
   localMatch(entries, q, kinds) {
-    const n = q.trim().toLowerCase();
+    // Multi-term: every space-separated term must appear in the name (or its attribute
+    // tags e.t, e.g. "dex"), so "boot dex" matches "Boots (DEX)" / dex boot bases.
+    const terms = q.trim().toLowerCase().split(/\s+/).filter(Boolean);
+    if (!terms.length) return [];
+    const first = terms[0];
     const starts = [], has = [];
     for (const e of entries) {
       if (kinds && kinds.indexOf(e.k) === -1) continue;   // command-scoped completion
-      const l = e.n.toLowerCase();
-      const i = l.indexOf(n);
-      if (i === 0) starts.push(e);
-      else if (i > 0) has.push(e);
+      const name = e.n.toLowerCase();
+      const hay = e.t ? name + ' ' + e.t : name;
+      let ok = true;
+      for (let i = 0; i < terms.length; i++) { if (hay.indexOf(terms[i]) === -1) { ok = false; break; } }
+      if (!ok) continue;
+      (name.indexOf(first) === 0 ? starts : has).push(e);
       if (starts.length >= 8) break;
     }
     return starts.concat(has).slice(0, 8).map(e => ({
-      title: e.n, pageUrl: e.u, kind: e.k, icon: e.i || '', sub: e.b || ''
+      title: e.n, pageUrl: e.u, kind: e.k, icon: e.i || '', sub: e.b || '', x: e.x || ''
     }));
   }
 
@@ -950,7 +956,7 @@ class Component extends DCLogic {
             if (c.native === 'wiki') wikiRows(6).forEach(r => rows.push(r));
             else if (c.kinds) this.state.suggestions.slice(0, 6).forEach(s => rows.push({
               badge: s.icon ? '' : (kindBadge[s.kind] || ''), icon: s.icon || '',
-              title: s.title, sub: s.sub || '', action: '↗', run: () => this.openUrl(c.search(s.title))
+              title: s.title, sub: s.sub || '', action: '↗', run: () => this.openUrl(s.x || c.search(s.title))
             }));
           }
         } else {
