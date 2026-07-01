@@ -97,8 +97,28 @@ def poe2db_gems():
 
 
 # --------------------------------------------------------------------------- #
+# Craft of Exile selects a base group via ?b=<id_base> (+ default view params). Its item
+# art path encodes the attribute (e.g. .../Boots/FourBootsDex1.webp -> Dex).
+_COE_VIEW = ("&ob=both&v=d&a=x&l=a&lg=20&bp=y&as=1&hb=0&bld=%7B%7D&im=%7B%7D"
+             "&ggt=%7C&ccp=%7B%7D&gvc=%7B%22limit%22:88%7D&gns=%7B%7D")
+_COE_ATTR = re.compile(r"(StrDexInt|StrDex|StrInt|DexInt|Str|Dex|Int)")
+
+
+def _coe_link(id_base):
+    return "https://www.craftofexile.com/?game=poe2&b=%s%s" % (id_base, _COE_VIEW)
+
+
+def _coe_attr_tags(imgurl):
+    m = _COE_ATTR.search(imgurl or "")
+    if not m:
+        return ""
+    return " ".join(p.lower() for p in re.findall(r"[A-Z][a-z]+", m.group(1)))
+
+
 def coe_bases():
-    """PoE2 item base names from Craft of Exile (served as a JS `poecd={...}` payload)."""
+    """PoE2 bases from Craft of Exile (a JS `poecd={...}` payload): individual bases tagged
+    with their attribute, plus CoE's own attribute-grouped categories ("Boots (DEX)", ...).
+    Bases link to CoE via ?b=<id_base>; attribute tags let `boot dex` match."""
     raw = get_text(COE_POE2)
     m = re.match(r"^\s*[A-Za-z_$][\w$]*\s*=\s*", raw)   # strip the `poecd=` prefix
     data = json.loads((raw[m.end():] if m else raw).rstrip().rstrip(";"))
@@ -107,10 +127,20 @@ def coe_bases():
         name = b.get("name_bitem")
         if not name:
             continue
-        out.append({
-            "n": name, "k": "base",
-            "u": WIKI["poe2"] + "/wiki/" + quote(name.replace(" ", "_")),
-        })
+        e = {"n": name, "k": "base",
+             "u": WIKI["poe2"] + "/wiki/" + quote(name.replace(" ", "_"))}
+        if b.get("id_base"):
+            e["x"] = _coe_link(b["id_base"])          # /coe opens the CoE base picker
+        tags = _coe_attr_tags(b.get("imgurl"))
+        if tags:
+            e["t"] = tags                              # searchable attribute (str/dex/int)
+        out.append(e)
+    # CoE's attribute-grouped categories, e.g. "Boots (DEX)" -> that exact base group.
+    for b in data.get("bases", {}).get("seq", []):
+        name, id_base = b.get("name_base"), b.get("id_base")
+        if not name or not id_base:
+            continue
+        out.append({"n": name, "k": "base", "u": _coe_link(id_base), "x": _coe_link(id_base)})
     return out
 
 
