@@ -12,6 +12,7 @@ The Hub falls back to its hardcoded labels if a game key is missing, so a failed
 """
 import json
 import os
+import re
 import sys
 from datetime import datetime, timezone
 from urllib.request import urlopen, Request
@@ -25,7 +26,30 @@ ENDPOINTS = {
 # Skip permanent leagues and HC/Ruthless/SSF variants to find the main softcore challenge league.
 _SKIP = ("standard", "hardcore", "ruthless", "ssf", "solo self-found", "hc ")
 
+# poe(2)db list every patch as "Version_X.Y.Z"; the highest is the current game version.
+VERSION_PAGES = {"poe1": "https://poedb.tw/us/", "poe2": "https://poe2db.tw/us/"}
+_VER_RE = re.compile(r"Version_(\d+\.\d+(?:\.\d+)?)([a-z]?)")
+
 UA = "exile-hub/1.0 (+https://bigbes.github.io/poe2-discovery/)"
+
+
+def latest_patch(url):
+    """Highest 'Version_X.Y.Z' listed on a poedb home page, e.g. '0.5.4' / '3.28.0'."""
+    req = Request(url, headers={"User-Agent": UA})
+    with urlopen(req, timeout=30) as r:
+        html = r.read().decode("utf-8", "replace")
+    found = _VER_RE.findall(html)
+    if not found:
+        return None
+
+    def key(pair):
+        nums = [int(x) for x in pair[0].split(".")]
+        while len(nums) < 3:
+            nums.append(0)
+        return (nums[0], nums[1], nums[2], pair[1])   # letter suffix breaks ties (1c > 1b)
+
+    best = max(found, key=key)
+    return best[0] + best[1]
 
 
 def current_league(url):
@@ -61,11 +85,20 @@ def main():
         except (HTTPError, URLError, ValueError, OSError) as e:
             print(f"warn: {game} league fetch failed: {e}", file=sys.stderr)
             name = None
+        entry = result.setdefault(game, {})
         if name:
-            result[game] = {"league": name}
+            entry["league"] = name
             print(f"{game}: {name}")
         else:
             print(f"{game}: (no league found; Hub will fall back)", file=sys.stderr)
+        # current game/patch version from poe(2)db (e.g. "0.5.4" / "3.28.0")
+        try:
+            patch = latest_patch(VERSION_PAGES[game])
+            if patch:
+                entry["patch"] = patch
+                print(f"{game} patch: {patch}")
+        except (HTTPError, URLError, OSError) as e:
+            print(f"warn: {game} patch fetch failed: {e}", file=sys.stderr)
 
     # poe2scout's league slug for the Economy tile (its own ShortName, not the league name)
     try:
