@@ -123,6 +123,15 @@ ask Claude to run it): project id `5eb697e8-0de0-47dd-874c-41f917c0447f`, file `
   `localPath: exile-hub.dc.html`) → `write_files`. `finalize_plan` is the approval gate.
 Note the repo filename (no space) maps to the project's `Exile Hub.dc.html` (with space).
 
+**Self-hosted React (deploy-time).** `support.js` loads React/ReactDOM from unpkg *unless*
+`window.React`/`window.ReactDOM` already exist — and that CDN fetch was failing for some users
+(adblock/network → blank page, raw `{{ }}` left in the DOM). Fix: `web/vendor/react*.min.js`
+are committed, and `publish-hub.yml` injects `<script src="./vendor/...">` before `support.js`
+**only in the deployed `docs/index.html`** (via `sed`), so support.js skips the CDN. The
+canonical `web/exile-hub.dc.html` is left untouched so Claude Design (which supplies React
+itself) still works and round-trips. Babel isn't vendored — it's only fetched for JSX, and the
+component uses `React.createElement`.
+
 The prior hand-written vanilla port (`index.html`+`styles.css`+`app.js`) was removed once we
 confirmed `support.js` runs the `.dc` standalone; it remains in git history as a
 CDN-free fallback if unpkg/CDN loading ever becomes a problem.
