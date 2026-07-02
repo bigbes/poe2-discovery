@@ -46,34 +46,43 @@ SEARCH_QUERY="Path of Exile 2" STATE_PATH=data/poe2.json OUTPUT_DIR=docs/poe2 py
 There is **no test suite, linter, or build step.** Validate changes directly:
 
 ```bash
-python3 -c "import ast; ast.parse(open('poe2_trending.py').read())"   # syntax
-node --check web/app.js                                              # JS syntax
+python3 -c "import ast; ast.parse(open('poe2_trending.py').read())"   # python syntax
+# the Hub is a .dc component — extract its <script data-dc-script> and syntax-check that:
+python3 -c "import re;s=open('web/exile-hub.dc.html').read();m=re.search(r'data-dc-script[^>]*>(.*?)</script>',s,re.S);open('/tmp/dc.js','w').write(m.group(1))" && node --check /tmp/dc.js
 ```
 
-For `web/app.js`, the established smoke-test pattern is a headless **jsdom** run that mocks
-`fetch`/`AbortController`/`ResizeObserver`, forces the offline error paths, dispatches an
-`input` event on `#q`, and asserts the featured tiles / groups / command-palette rows render
-with zero `window.onerror`. There is no browser available in-session; jsdom is the check.
+There is no `web/app.js` (the old vanilla port was removed). To unit-test Hub logic without a
+browser: `eval` the extracted `class Component` with stubs, instantiate, call methods directly —
+`globalThis.DCLogic=class{setState(p){Object.assign(this.state,typeof p==='function'?p(this.state):p);}}`,
+`globalThis.React={createElement:()=>({})}`, plus `window`/`location`/`document` stubs. For a full
+boot, jsdom **can** run it once React + support.js are inlined (react/react-dom must be inlined via a
+*function* replacer — `.replace(m,()=>code)` — so `$$typeof` in React source isn't mangled).
 
 ## Deploying / operating (GitHub Actions)
 
-**Two workflows**, both writing to the `feed` branch and sharing one concurrency group
+**Three workflows**, all writing to the `feed` branch and sharing one concurrency group
 (`trending-feed`) so they never race:
-- **`build-feed.yml`** — "Build trending feed and table". Scheduled every 6h + manual dispatch.
-  Runs the generator for both games; commits `data/` + `docs/poe2` + `docs/poe1`. Does **not**
-  touch the landing page.
-- **`publish-hub.yml`** — "Publish Exile Hub". Triggers on push to `master` under `web/**` (+ manual).
-  Copies `web/exile-hub.dc.html` → `docs/index.html` and `web/support.js` → `docs/support.js`.
+- **`build-feed.yml`** — "Build trending feed and table". Scheduled every 6h + manual. Generates
+  both feeds (`data/` + `docs/poe2` + `docs/poe1`), **plus `fetch_leagues.py`→`docs/leagues.json`
+  and `fetch_patchnotes.py`→`docs/patchnotes/index.html`**. Does **not** touch the landing page.
+- **`publish-hub.yml`** — "Publish Exile Hub". On push to `master` under `web/**` (+ manual).
+  Copies `web/exile-hub.dc.html`→`docs/index.html` + `web/support.js`, **and injects self-hosted
+  `web/vendor/react*.min.js` (via `sed`) + favicon links into the deployed `index.html`**.
+- **`build-search-index.yml`** — "Build search index". Weekly. Runs `build_search_index.py`→`docs/search/*.json`.
 
-No loops: both commit to `feed` (with `[skip ci]`), which no workflow watches; `publish-hub`
-watches only `master`. To force either:
+No loops: all commit to `feed` (with `[skip ci]`), which no workflow watches; `publish-hub`
+watches only `master`. To force any:
 
 ```bash
-gh workflow run "Build trending feed and table" -R bigbes/poe2-discovery --ref master   # feeds
+gh workflow run "Build trending feed and table" -R bigbes/poe2-discovery --ref master   # feeds + leagues.json + patchnotes
 gh workflow run "Publish Exile Hub"             -R bigbes/poe2-discovery --ref master   # landing page
+gh workflow run "Build search index"            -R bigbes/poe2-discovery --ref master   # docs/search/*.json
 RID=$(gh run list -R bigbes/poe2-discovery --limit 1 --json databaseId -q '.[0].databaseId')
 gh run watch "$RID" -R bigbes/poe2-discovery --exit-status
 ```
+
+`leagues.json` schema: `{version:1, updated, poeN:{league, patch, scout?}}` — `patch` is the
+current game version scraped from poe(2)db, `scout` is poe2scout's league slug (poe2 only).
 
 Quota math matters: each feed run costs ~200 API units (`SEARCH_PAGES × 100`); two feeds ≈
 ~400/run against a 10,000/day free quota. Hourly ≈ 9,700/day (near the ceiling) — drop
@@ -84,9 +93,9 @@ Quota math matters: each feed run costs ~200 API units (`SEARCH_PAGES × 100`); 
 Feeds are per-invocation: duplicate the "Generate feed" step in the workflow with a distinct
 `SEARCH_QUERY`, `STATE_PATH` (e.g. `published/data/foo.json`), and `OUTPUT_DIR`
 (e.g. `published/docs/foo`). Current layout: PoE2 → `/poe2/`, PoE1 → `/poe1/`. The Exile Hub's
-`RAW` map in `web/app.js` hardcodes each game's `ytFeed` URL — keep it in sync with the
-`OUTPUT_DIR` a feed publishes to (they drifted once: the design draft used `/poe/`, the repo
-publishes `/poe1/`).
+`raw` getter in `web/exile-hub.dc.html` hardcodes each game's `ytFeed` URL — keep it in sync
+with the `OUTPUT_DIR` a feed publishes to (they drifted once: the design draft used `/poe/`,
+the repo publishes `/poe1/`).
 
 ## Exile Hub (`web/exile-hub.dc.html`) architecture & round-trip
 
@@ -108,13 +117,28 @@ in the game tabs + tag, falling back to hardcoded `0.5`/`3.28` if the file is mi
 silently break the Hub's parser. Each game's `ytFeed` URL is hardcoded in the component's `raw`
 map; keep it in sync with the feed's `OUTPUT_DIR`.
 
-**Omnibar completion** loads a weekly-built index `./search/<game>.json` (same-origin) and
-matches locally (`fetchIndex`/`localMatch`: prefix hits first, then substring, cap 8), falling
-back to the live wiki `opensearch` when the index isn't loaded or a query has no local hits.
-`build_search_index.py` builds it server-side (no CORS on the sources): wiki `allpages` titles
-(both games) + PoE2 scout uniques (name/icon/base type, current league via scout's `IsCurrent`)
-+ PoE2 ninja currency. Entries are compact `{n,k,u,i?,b?}`; unique/currency carry icons.
-Run weekly by `build-search-index.yml`. Sizes: poe2 ~98 KB gz, poe1 ~235 KB gz.
+**Omnibar completion** loads a weekly-built index `./search/<game>.json` (same-origin, fetched
+`cache:'default'` — NOT `force-cache`, which pinned a stale index) and matches locally
+(`fetchIndex`/`localMatch`: **multi-term** — every space-separated term must hit the name or the
+attribute tag `t`; prefix hits first, then substring, cap 50), falling back to the live wiki
+`opensearch` when the index isn't loaded or a query has no local hits.
+`build_search_index.py` builds it server-side (no CORS on any source): wiki `allpages` titles
+(both games) + PoE2 **scout uniques** (icons) + PoE2 **ninja economy** across all exchange tabs
+`NINJA_TYPES` (~600, icons) + PoE2 **CoE bases** (poec_data.json is a `poecd={...}` JS payload;
+individual bases get an icon `images/game_poe2/<imgurl>`, an attribute tag `t` from the art path,
+and a CoE deep-link `x`; plus the attribute *groups* like `Boots (DEX)` from `bases.seq`) + PoE2
+**poe2db gems** (`gemitem` anchors, ~250). Entries are compact `{n,k,u,i?,b?,t?,x?}`. `merge()`
+ranks **icon > typed-kind > bare wiki**, so a gem/base/currency also present as a wiki page keeps
+its typed kind (else `/coe /n /sc /db` scoped completion would miss it). Scoped rows open `x` (deep
+link) when present, else the command's site-search. Run weekly by `build-search-index.yml`.
+
+Each command's `kinds` array scopes which index kinds it completes (`/n`→currency+unique+base,
+`/sc`→unique, `/db`→gem, `/coe`→base). Gotcha: a **non-empty array is required** — `kinds: null`
+(or absent) *disables* per-command completion, it does not widen it; only `native:'wiki'` completes
+unscoped. Both the completion trigger and the row renderer key off `c.kinds` being truthy.
+Second gotcha: the deployed `docs/search/<game>.json` is regenerated **only** by the weekly
+workflow, so adding a source to `build_search_index.py` or widening a command's `kinds` surfaces
+nothing until `build-search-index.yml` reruns (`gh workflow run` to force it).
 
 **DesignSync round-trip** (via Claude Code's DesignSync tool; there is no user-facing CLI —
 ask Claude to run it): project id `5eb697e8-0de0-47dd-874c-41f917c0447f`, file `Exile Hub.dc.html`.
