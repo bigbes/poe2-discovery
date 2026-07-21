@@ -1,6 +1,5 @@
 {
   "poe1": {
-    "league": "Mirage",
     "patch": "3.29.0"
   },
   "poe2": {
@@ -8,6 +7,6 @@
     "patch": "0.5.4b",
     "scout": "runes"
   },
-  "updated": "2026-07-20T19:48:58Z",
+  "updated": "2026-07-21T03:18:41Z",
   "version": 1
 }
