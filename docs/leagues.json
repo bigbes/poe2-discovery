@@ -1,13 +1,11 @@
 {
   "poe1": {
-    "league": "Allflame",
-    "patch": "3.29.1"
+    "league": "Allflame"
   },
   "poe2": {
     "league": "Runes of Aldur",
-    "patch": "0.5.4b",
     "scout": "runes"
   },
-  "updated": "2026-08-07T07:23:55Z",
+  "updated": "2026-08-07T13:15:06Z",
   "version": 1
 }
