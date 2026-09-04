@@ -4,10 +4,10 @@
     "patch": "3.29.3"
   },
   "poe2": {
-    "league": "Runes of Aldur",
+    "league": "Forbidden Rites",
     "patch": "1.0.0",
-    "scout": "runes"
+    "scout": "forbiddenrites"
   },
-  "updated": "2026-09-04T16:05:02Z",
+  "updated": "2026-09-04T20:35:19Z",
   "version": 1
 }
