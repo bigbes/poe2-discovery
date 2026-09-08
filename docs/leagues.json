@@ -5,8 +5,9 @@
   },
   "poe2": {
     "league": "Forbidden Rites",
-    "patch": "1.0.0"
+    "patch": "1.0.0",
+    "scout": "forbiddenrites"
   },
-  "updated": "2026-09-07T21:21:42Z",
+  "updated": "2026-09-08T03:58:25Z",
   "version": 1
 }
