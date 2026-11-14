@@ -1,11 +1,13 @@
 {
   "poe1": {
+    "league": "Covens",
     "patch": "3.30.0"
   },
   "poe2": {
+    "league": "Forbidden Rites",
     "patch": "1.0.0",
     "scout": "forbiddenrites"
   },
-  "updated": "2026-11-14T05:47:26Z",
+  "updated": "2026-11-14T13:16:22Z",
   "version": 1
 }
